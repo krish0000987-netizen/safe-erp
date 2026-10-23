@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/((?!assets/|favicon.svg|openapi.json).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

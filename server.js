@@ -406,12 +406,17 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(`Safe Guard Force ERP Server running on port ${PORT}`);
-  console.log(`Local Access:  http://localhost:${PORT}`);
-  console.log(`Connected to:  ${supabaseUrl}`);
-  console.log(`OpenAPI Spec:  http://localhost:${PORT}/api/v1/openapi.json`);
-  console.log(`=======================================================`);
-});
+// Start Server locally
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`=======================================================`);
+    console.log(`Safe Guard Force ERP Server running on port ${PORT}`);
+    console.log(`Local Access:  http://localhost:${PORT}`);
+    console.log(`Connected to:  ${supabaseUrl}`);
+    console.log(`OpenAPI Spec:  http://localhost:${PORT}/api/v1/openapi.json`);
+    console.log(`=======================================================`);
+  });
+}
+
+export default app;
+
