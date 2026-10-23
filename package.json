@@ -1,0 +1,28 @@
+{
+  "name": "safe-guard-force-erp",
+  "version": "1.0.0",
+  "description": "Safe Guard Force - Enterprise Resource Planning (ERP) System",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "db:migrate": "python3 scripts/apply-supabase.py"
+  },
+  "keywords": [
+    "security-management",
+    "erp",
+    "supabase",
+    "react",
+    "safe-guard-force"
+  ],
+  "author": "Safe Guard Force",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.48.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}

@@ -1,0 +1,1 @@
+import{ab as i,r as u,aQ as m}from"./index-Cx6Yn3K_.js";function h(a){const[c,r]=i(),n=c.get("tab")||a,o=u.useCallback(e=>r(p=>{const s=new URLSearchParams;return p.forEach((b,t)=>{!m(t)&&t!=="tab"&&s.append(t,b)}),e!==a&&s.set("tab",e),s},{replace:!0}),[r,a]);return[n,o]}export{h as u};
