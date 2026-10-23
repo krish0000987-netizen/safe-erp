@@ -400,8 +400,8 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // Route all other requests to index.html for React Router
 app.get("*", (req, res) => {
-  if (req.path.startsWith("/api/")) {
-    return res.status(404).json(envelope(null, {}, [{ message: "Endpoint not found" }]));
+  if (req.path.startsWith("/api/") || req.path.startsWith("/assets/")) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Not found" }]));
   }
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
