@@ -33,6 +33,12 @@ A comprehensive, production-ready Enterprise Resource Planning (ERP) system tail
 
 ---
 
+## 🌐 Live Production Deployment
+
+- **Production URL**: [https://safe-gaurd-erp.vercel.app](https://safe-gaurd-erp.vercel.app)
+- **OpenAPI Schema**: [https://safe-gaurd-erp.vercel.app/api/v1/openapi.json](https://safe-gaurd-erp.vercel.app/api/v1/openapi.json)
+
+
 ## 🚀 Quickstart
 
 ### 1. Install Dependencies
