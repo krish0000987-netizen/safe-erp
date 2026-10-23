@@ -455,6 +455,14 @@ app.get("/api/v1/auth/me", (req, res) => {
   return res.json(envelope(adminSession));
 });
 
+app.patch("/api/v1/auth/me", (req, res) => {
+  if (req.body?.language) {
+    adminUser.language = req.body.language;
+    adminSession.user.language = req.body.language;
+  }
+  return res.json(envelope(adminSession));
+});
+
 app.post("/api/v1/auth/login", (req, res) => {
   const { identifier } = req.body || {};
 
@@ -1812,8 +1820,8 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// Start Server locally
-if (!process.env.VERCEL) {
+// Start Server locally if run directly
+if (!process.env.VERCEL && process.argv[1] && process.argv[1].endsWith("server.js")) {
   app.listen(PORT, () => {
     console.log(`=======================================================`);
     console.log(`Safe Guard Force ERP Server running on port ${PORT}`);
