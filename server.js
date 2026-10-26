@@ -1062,26 +1062,40 @@ app.get("/api/v1/system/health", (req, res) => {
       healthy: true,
       last_heartbeat_at: new Date(Date.now() - 14000).toISOString(),
       heartbeat_age_sec: 14,
+      tasks: [
+        { class: "MarkAbsentGuardsJob", domain: "Attendance", schedule: "Every 15 min", last_run_at: new Date(Date.now() - 300000).toISOString() },
+        { class: "PatrolMissedRoundsEscalation", domain: "Patrol", schedule: "Every 5 min", last_run_at: new Date(Date.now() - 120000).toISOString() },
+        { class: "DailyRosterShiftLock", domain: "Roster", schedule: "Daily at 00:00", last_run_at: new Date(Date.now() - 3600000 * 18).toISOString() },
+        { class: "GpsGeofenceHealthSync", domain: "Operations", schedule: "Every 1 min", last_run_at: new Date(Date.now() - 45000).toISOString() },
+      ],
     },
     jobs: {
       counts: { queued: 0, running: 0, failed: 0, done: 248 },
       overdue_queued: 0,
       stuck_running: 0,
       failed: [],
+      by_handler: [
+        { handler: "App\\Jobs\\AttendanceSyncJob", runs_24h: 96, failed_24h: 0, avg_ms: 180, p95_ms: 320, last_finished_at: new Date().toISOString() },
+        { handler: "App\\Jobs\\PatrolRoundAlertJob", runs_24h: 48, failed_24h: 0, avg_ms: 120, p95_ms: 210, last_finished_at: new Date().toISOString() },
+        { handler: "App\\Jobs\\InvoiceGenerationJob", runs_24h: 12, failed_24h: 0, avg_ms: 450, p95_ms: 820, last_finished_at: new Date().toISOString() },
+        { handler: "App\\Jobs\\ExportGenerationJob", runs_24h: 24, failed_24h: 0, avg_ms: 650, p95_ms: 1100, last_finished_at: new Date().toISOString() },
+      ],
       recent: [
         { id: 101, queue: "exports", status: "done", duration_ms: 1240, finished_at: new Date(Date.now() - 120000).toISOString() },
         { id: 102, queue: "attendance_sync", status: "done", duration_ms: 680, finished_at: new Date(Date.now() - 300000).toISOString() },
       ],
     },
     storage: {
+      uploads_files: 142,
+      uploads_bytes: 26031000,
       database_tables: 42,
-      database_size_bytes: 18454912,
+      database_bytes: 18454912,
       disk_total_bytes: 53687091200,
       disk_free_bytes: 38450123980,
       by_category: [
-        { category: "Guard KYC & Police Verification", files_count: 28, total_bytes: 8421000 },
-        { category: "Patrol Checkpoint QR & Photos", files_count: 56, total_bytes: 12400000 },
-        { category: "Incident Evidence Photos", files_count: 14, total_bytes: 5210000 },
+        { category: "Guard KYC & Police Verification", files: 28, bytes: 8421000 },
+        { category: "Patrol Checkpoint QR & Photos", files: 56, bytes: 12400000 },
+        { category: "Incident Evidence Photos", files: 14, bytes: 5210000 },
       ],
     },
     versions: {
@@ -3034,6 +3048,21 @@ app.get("/api/v1/candidates/:id", (req, res) => {
     education: "12th Standard HSC (Passed)",
     height_cm: 174,
     weight_kg: 72,
+    stage_name: cand.stage || "Interview",
+    status: cand.status || "interview_scheduled",
+    checklist: [
+      { document_type_id: 1, name: "Aadhaar Card Copy", required: true, has_expiry: false, documents: [{ id: 1, original_name: "aadhaar_card.pdf", file_url: "https://example.com/doc1.pdf", doc_number: "XXXX-XXXX-9921", is_verified: true, verified_by_name: "Admin" }] },
+      { document_type_id: 2, name: "Police Verification Certificate", required: true, has_expiry: true, documents: [{ id: 2, original_name: "police_verification.pdf", file_url: "https://example.com/doc2.pdf", doc_number: "PV-MUM-2026", expiry_date: "2027-10-18", is_verified: true, verified_by_name: "Admin" }] },
+      { document_type_id: 3, name: "Bank Passbook / Cancelled Cheque", required: false, has_expiry: false, documents: [] },
+      { document_type_id: 4, name: "Ex-Serviceman Discharge Book", required: true, has_expiry: false, documents: [{ id: 3, original_name: "discharge_book.pdf", file_url: "https://example.com/doc3.pdf", doc_number: "EX-99201", is_verified: true, verified_by_name: "Admin" }] },
+    ],
+    duplicates: [],
+    stages: [
+      { id: 1, stage_name: "Applied", status: "passed", scheduled_at: "2026-10-15T10:00:00Z", completed_at: "2026-10-15T10:15:00Z", interviewer_name: "HR Operations", remarks: "Candidate registered" },
+      { id: 2, stage_name: "Screening", status: "passed", scheduled_at: "2026-10-16T11:30:00Z", completed_at: "2026-10-16T12:00:00Z", interviewer_name: "Field Supervisor", remarks: "Height and physical turnout verified" },
+      { id: 3, stage_name: "Interview", status: "passed", scheduled_at: "2026-10-18T14:00:00Z", completed_at: "2026-10-18T14:45:00Z", interviewer_name: "Rajesh Sharma", remarks: "Cleared weapon handling and communication interview" },
+    ],
+    notes: "Candidate has strong ex-serviceman background, disciplined and articulate.",
     stage_history: [
       { stage: "Applied", moved_at: "2026-10-15", note: "Walk-in registration via Mumbai HO" },
       { stage: "Screening", moved_at: "2026-10-16", note: "Documents verified: Aadhaar & Police Clearance" },
@@ -3103,6 +3132,17 @@ app.get("/api/v1/leads/:id", (req, res) => {
   const lead = inMemory.leads.find(l => l.id === Number(req.params.id)) || inMemory.leads[0];
   return res.json(envelope({
     ...lead,
+    quotations: [
+      {
+        id: 1,
+        quotation_no: "QT-2026-001",
+        status: "sent",
+        total_monthly_paise: 48000000,
+        created_at: "2026-10-21T11:00:00Z",
+        valid_until: "2026-11-20",
+        estimated_guards: 16,
+      }
+    ],
     activities: [
       { id: 1, type: "call", note: "Initial discovery call with Head of Facilities", created_at: "2026-10-18T10:00:00Z", user_name: "Rajesh Sharma" },
       { id: 2, type: "survey", note: "Site survey conducted at Main Campus perimeter", created_at: "2026-10-20T14:00:00Z", user_name: "Vikram Deshmukh" },
@@ -3164,8 +3204,76 @@ app.post("/api/v1/quotations/preview", (req, res) => {
 
 app.get("/api/v1/quotations/:id", (req, res) => {
   const q = inMemory.quotations.find(item => item.id === Number(req.params.id)) || inMemory.quotations[0];
+  const quoteNo = q.quote_no || q.quotation_no || "QT-2026-001";
+  const totalPaise = q.total_paise || 36993000;
   return res.json(envelope({
     ...q,
+    id: q.id,
+    quote_no: quoteNo,
+    version: q.version || 1,
+    status: q.status || "sent",
+    party_name: q.party_name || "Adani Realty - Western Heights",
+    client_name: q.client_name || q.party_name || "Adani Realty - Western Heights",
+    quote_date: q.quote_date || "2026-10-15",
+    valid_until: q.valid_until || "2026-11-15",
+    gst_bp: q.gst_bp || 1800,
+    headcount: 16,
+    subtotal_paise: 31350000,
+    gst_paise: 5643000,
+    total_paise: totalPaise,
+    terms: q.terms || "1. Rates inclusive of uniform & training.\n2. Payment within 15 days of invoice submission.\n3. GST 18% extra as applicable.",
+    notes: typeof q.notes === "string" ? q.notes : "Competitive pricing submitted for quarterly security contract renewal.",
+    versions: [
+      { id: q.id, quote_no: quoteNo, total_paise: totalPaise, status: q.status || "sent" }
+    ],
+    lines: [
+      {
+        guard_category_id: 1,
+        guard_category_name: "Security Guard",
+        headcount: 12,
+        shift_hours: 8,
+        basic_paise: 1650000,
+        allowances_paise: 250000,
+        pf_applicable: true,
+        esi_applicable: true,
+        bonus_applicable: true,
+        pf_paise: 198000,
+        esi_paise: 61750,
+        bonus_paise: 137500,
+        leave_bp: 1667,
+        leave_paise: 316730,
+        uniform_paise: 60000,
+        admin_paise: 80000,
+        cost_paise: 2753980,
+        margin_bp: 1000,
+        margin_paise: 275398,
+        rate_paise: 3029378,
+        amount_paise: 36352536,
+      },
+      {
+        guard_category_id: 2,
+        guard_category_name: "Armed Guard",
+        headcount: 4,
+        shift_hours: 8,
+        basic_paise: 2450000,
+        allowances_paise: 350000,
+        pf_applicable: true,
+        esi_applicable: false,
+        bonus_applicable: true,
+        pf_paise: 294000,
+        esi_paise: 0,
+        bonus_paise: 204166,
+        leave_bp: 1667,
+        leave_paise: 466760,
+        uniform_paise: 60000,
+        admin_paise: 80000,
+        cost_paise: 3904926,
+        margin_bp: 1000,
+        margin_paise: 390492,
+        rate_paise: 4295418,
+        amount_paise: 17181672,
+      },
+    ],
     items: [
       { designation: "Security Guard", headcount: 12, wage_rate_paise: 2200000, margin_percent: 10 },
       { designation: "Armed Guard", headcount: 4, wage_rate_paise: 3500000, margin_percent: 10 },
@@ -3238,11 +3346,20 @@ app.get("/api/v1/contracts", (req, res) => {
 
 app.get("/api/v1/contracts/:id", (req, res) => {
   const c = inMemory.contracts.find(item => item.id === Number(req.params.id)) || inMemory.contracts[0];
+  const monthlyVal = c.monthly_billing_paise || 42480000;
+  const gstPct = (c.gst_bp || 1800) / 100;
   return res.json(envelope({
     ...c,
+    contract_no: c.contract_no || c.contract_number,
+    allowed_status: ["active", "expired", "terminated"],
+    monthly_value_paise: monthlyVal,
+    gst_percent: gstPct,
+    gst_paise: Math.round(monthlyVal * (gstPct / 100)),
+    headcount: 12,
+    client_code: "CLI-001",
     rates: [
-      { guard_category_id: 1, guard_category_name: "Senior Guard", headcount: 4, shift_hours: 8, rate_paise: 3500000, ot_rate_paise: 25000 },
-      { guard_category_id: 2, guard_category_name: "Security Guard", headcount: 8, shift_hours: 8, rate_paise: 2800000, ot_rate_paise: 20000 },
+      { id: 1, category_name: "Senior Guard", site_name: "Lodha Bellissimo", headcount: 4, shift_hours: 8, rate_paise: 3500000, ot_rate_paise: 25000, monthly_paise: 14000000 },
+      { id: 2, category_name: "Security Guard", site_name: "Lodha Bellissimo", headcount: 8, shift_hours: 8, rate_paise: 2800000, ot_rate_paise: 20000, monthly_paise: 22400000 },
     ],
   }));
 });
