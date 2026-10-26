@@ -178,6 +178,12 @@ const inMemory = {
     { id: 5, guard_id: 5, guard_name: "Sanjay Manohar Kadam", site_id: 2, site_name: "HDFC Bank BKC Complex", shift_name: "Morning Shift (A)", shift_code: "A", start_time: "07:00", end_time: "15:00", duty_date: "2026-10-23", attendance_status: "P", is_relief: false },
   ],
 
+  // Full attendance records store
+  attendance: [],
+  leave_requests: [],
+  live_locations: [],
+
+
   manpower_requests: [
     { id: 1, client_id: 1, client_name: "Lodha Group", site_name: "Lodha Bellissimo", request_type: "Extra Guards", guard_category: "Armed Guard", headcount: 2, from_date: "2026-10-24", to_date: "2026-10-26", reason: "Annual General Meeting & VIP Movement", status: "Approved" },
     { id: 2, client_id: 5, client_name: "Phoenix Mills", site_name: "Phoenix Palladium Mall", request_type: "Festival Deployment", guard_category: "Lady Guard", headcount: 4, from_date: "2026-10-28", to_date: "2026-11-04", reason: "Diwali Festive Season Footfall Surge", status: "Approved" },
@@ -340,6 +346,415 @@ const inMemory = {
 };
 
 // ============================================================================
+// ATTENDANCE & LEAVE STORE INITIALIZER
+// ============================================================================
+function initAttendanceData() {
+  const todayStr = new Date().toISOString().split("T")[0];
+  const guards = inMemory.guards;
+  const sites = inMemory.sites;
+  const shifts = inMemory.shifts;
+
+  guards.forEach((g) => {
+    if (!g.employee_code) {
+      g.employee_code = g.code || g.employee_id || `SGF-G-${1000 + g.id}`;
+    }
+  });
+
+  // Generate 14 days of realistic attendance logs
+  const records = [];
+  let recordId = 1;
+
+  for (let dayOffset = 13; dayOffset >= 0; dayOffset--) {
+    const d = new Date(Date.now() - dayOffset * 86400000);
+    const dateStr = d.toISOString().split("T")[0];
+    const isToday = dayOffset === 0;
+
+    guards.forEach((g, gIdx) => {
+      const site = sites.find(s => s.id === g.current_site_id) || sites[gIdx % sites.length];
+      const shift = shifts[gIdx % 3]; // Morning, Afternoon, Night
+
+      let status = "present";
+      let statusCode = "P";
+      let lateMin = 0;
+      let workedMin = 480;
+      let otMin = 0;
+      let checkInTime = "06:55:12";
+      let checkOutTime = "15:02:40";
+      let checkInDist = 8 + (gIdx * 3) % 15;
+      let isRelief = false;
+      let replacesGuardId = null;
+      let replacesGuardName = null;
+      let isCorrected = false;
+      let correctionReason = null;
+
+      if (isToday) {
+        if (gIdx === 8) { // Anand Sawant
+          status = "late";
+          statusCode = "L";
+          lateMin = 25;
+          workedMin = 455;
+          checkInTime = "07:25:00";
+        } else if (gIdx === 3) { // Rahul Gaikwad (On sick leave, relief deployed)
+          status = "leave";
+          statusCode = "LV";
+          workedMin = 0;
+          checkInTime = null;
+          checkOutTime = null;
+          checkInDist = null;
+        } else if (gIdx === 1) { // Mahesh Shinde (acting as relief)
+          isRelief = true;
+          replacesGuardId = 4;
+          replacesGuardName = "Rahul Suresh Gaikwad";
+          otMin = 60;
+          workedMin = 540;
+        } else if (gIdx === 0) { // Santosh Jadhav
+          otMin = 30;
+          workedMin = 510;
+        }
+      } else {
+        const hash = (g.id * 17 + dayOffset * 31) % 100;
+        if (hash < 75) {
+          status = "present";
+          statusCode = "P";
+        } else if (hash < 85) {
+          status = "late";
+          statusCode = "L";
+          lateMin = 15;
+          checkInTime = "07:15:00";
+        } else if (hash < 92) {
+          status = "weekly_off";
+          statusCode = "WO";
+          workedMin = 0;
+          checkInTime = null;
+          checkOutTime = null;
+          checkInDist = null;
+        } else {
+          status = "leave";
+          statusCode = "LV";
+          workedMin = 0;
+          checkInTime = null;
+          checkOutTime = null;
+          checkInDist = null;
+        }
+        if (dayOffset === 1 && gIdx === 2) {
+          isCorrected = true;
+          correctionReason = "Biometric scanner offline sync discrepancy corrected by Field Supervisor";
+        }
+      }
+
+      records.push({
+        id: recordId++,
+        key: `att-${dateStr}-${g.id}`,
+        attendance_id: status === "leave" || status === "weekly_off" ? null : recordId - 1,
+        guard_id: g.id,
+        guard_name: g.name,
+        employee_code: g.employee_id || g.code,
+        site_id: site.id,
+        site_name: site.name,
+        shift_id: shift.id,
+        shift_name: shift.name,
+        shift_code: shift.code,
+        shift_start_at: `${dateStr}T${shift.start_time}+05:30`,
+        shift_end_at: `${dateStr}T${shift.end_time}+05:30`,
+        duty_date: dateStr,
+        status: status,
+        status_code: statusCode,
+        state: status,
+        check_in_at: checkInTime ? `${dateStr}T${checkInTime}+05:30` : null,
+        check_in_selfie_url: checkInTime ? `https://images.unsplash.com/photo-${1507003211169 + (gIdx * 1000)}?w=150&auto=format&fit=crop&q=80` : null,
+        check_in_distance_m: checkInDist,
+        check_out_at: checkOutTime ? `${dateStr}T${checkOutTime}+05:30` : null,
+        check_out_selfie_url: checkOutTime ? `https://images.unsplash.com/photo-${1507003211169 + (gIdx * 1000)}?w=150&auto=format&fit=crop&q=80` : null,
+        check_out_distance_m: checkInDist ? checkInDist + 4 : null,
+        late_min: lateMin,
+        worked_min: workedMin,
+        ot_min: otMin,
+        source: isCorrected ? "manual" : "app",
+        captured_offline: gIdx === 5,
+        is_relief: isRelief,
+        replaces_guard_id: replacesGuardId,
+        replaces_guard_name: replacesGuardName,
+        is_corrected: isCorrected,
+        correction_reason: correctionReason,
+        corrected_by_name: isCorrected ? "Rajesh Sharma" : null,
+        corrected_at: isCorrected ? `${dateStr}T17:30:00Z` : null,
+        device_id: `SM-G998B (Samsung S2${gIdx} Ultra)`,
+        synced_at: checkInTime ? `${dateStr}T${checkInTime}+05:30` : null,
+      });
+    });
+  }
+
+  inMemory.attendance = records;
+
+  // Leave Requests
+  inMemory.leave_requests = [
+    {
+      id: 1,
+      guard_id: 1,
+      guard_name: "Santosh Tukaram Jadhav",
+      employee_code: "SGF-G-1001",
+      site_id: 1,
+      site_name: "Lodha Bellissimo",
+      leave_type_name: "Earned Leave",
+      from_date: "2026-10-28",
+      to_date: "2026-10-30",
+      days: 3,
+      reason: "Sister's wedding ceremony in Satara",
+      status: "pending",
+      decided_by_name: null,
+      decision_note: null,
+      created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+    },
+    {
+      id: 2,
+      guard_id: 4,
+      guard_name: "Rahul Suresh Gaikwad",
+      employee_code: "SGF-G-1004",
+      site_id: 2,
+      site_name: "HDFC Bank BKC Complex",
+      leave_type_name: "Sick Leave",
+      from_date: todayStr,
+      to_date: todayStr,
+      days: 1,
+      reason: "Viral fever with prescribed 24h rest",
+      status: "approved",
+      decided_by_name: "Rajesh Sharma",
+      decision_note: "Approved. Relief guard Mahesh Shinde assigned.",
+      created_at: new Date(Date.now() - 86400000).toISOString(),
+    },
+    {
+      id: 3,
+      guard_id: 9,
+      guard_name: "Anand Vilas Sawant",
+      employee_code: "SGF-G-1009",
+      site_id: 3,
+      site_name: "Reliance Tech Park - Block A",
+      leave_type_name: "Casual Leave",
+      from_date: "2026-10-31",
+      to_date: "2026-11-01",
+      days: 2,
+      reason: "Family property registry and government paperwork",
+      status: "pending",
+      decided_by_name: null,
+      decision_note: null,
+      created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
+    },
+    {
+      id: 4,
+      guard_id: 10,
+      guard_name: "Kishore Pandurang Mane",
+      employee_code: "SGF-G-1010",
+      site_id: 4,
+      site_name: "Godrej One Corporate Tower",
+      leave_type_name: "Emergency Leave",
+      from_date: "2026-10-22",
+      to_date: "2026-10-23",
+      days: 2,
+      reason: "Elderly parent hospital admission",
+      status: "approved",
+      decided_by_name: "Rajesh Sharma",
+      decision_note: "Approved as emergency medical leave.",
+      created_at: new Date(Date.now() - 86400000 * 4).toISOString(),
+    },
+  ];
+
+  // Live Locations for GPS Map
+  inMemory.live_locations = [
+    {
+      attendance_id: 1,
+      guard_id: 1,
+      guard_name: "Santosh Tukaram Jadhav",
+      employee_code: "SGF-G-1001",
+      site_id: 1,
+      site_name: "Lodha Bellissimo",
+      shift_name: "Morning Shift (A)",
+      site_lat: 18.9912,
+      site_lng: 72.8315,
+      site_radius_m: 200,
+      lat: 18.99125,
+      lng: 72.83155,
+      status: "present",
+      battery_pct: 92,
+      distance_from_site_m: 8,
+      mobile: "+91 98920 11001",
+      check_in_at: `${todayStr}T06:55:12+05:30`,
+      recorded_at: `${todayStr} 10:45:00`,
+      source: "ping",
+    },
+    {
+      attendance_id: 2,
+      guard_id: 2,
+      guard_name: "Mahesh Balasaheb Shinde",
+      employee_code: "SGF-G-1002",
+      site_id: 1,
+      site_name: "Lodha Bellissimo",
+      shift_name: "Morning Shift (A)",
+      site_lat: 18.9912,
+      site_lng: 72.8315,
+      site_radius_m: 200,
+      lat: 18.99118,
+      lng: 72.83148,
+      status: "present",
+      battery_pct: 85,
+      distance_from_site_m: 6,
+      mobile: "+91 98920 11003",
+      check_in_at: `${todayStr}T06:58:00+05:30`,
+      recorded_at: `${todayStr} 10:45:00`,
+      source: "ping",
+    },
+    {
+      attendance_id: 3,
+      guard_id: 3,
+      guard_name: "Pravin Dattatray Patil",
+      employee_code: "SGF-G-1003",
+      site_id: 2,
+      site_name: "HDFC Bank BKC Complex",
+      shift_name: "Morning Shift (A)",
+      site_lat: 19.0665,
+      site_lng: 72.8682,
+      site_radius_m: 150,
+      lat: 19.06655,
+      lng: 72.86825,
+      status: "present",
+      battery_pct: 74,
+      distance_from_site_m: 7,
+      mobile: "+91 98920 11005",
+      check_in_at: `${todayStr}T06:50:00+05:30`,
+      recorded_at: `${todayStr} 10:44:00`,
+      source: "ping",
+    },
+    {
+      attendance_id: 5,
+      guard_id: 5,
+      guard_name: "Sanjay Manohar Kadam",
+      employee_code: "SGF-G-1005",
+      site_id: 2,
+      site_name: "HDFC Bank BKC Complex",
+      shift_name: "Morning Shift (A)",
+      site_lat: 19.0665,
+      site_lng: 72.8682,
+      site_radius_m: 150,
+      lat: 19.06648,
+      lng: 72.86818,
+      status: "present",
+      battery_pct: 68,
+      distance_from_site_m: 5,
+      mobile: "+91 98920 11009",
+      check_in_at: `${todayStr}T06:45:00+05:30`,
+      recorded_at: `${todayStr} 10:43:00`,
+      source: "ping",
+    },
+    {
+      attendance_id: 6,
+      guard_id: 6,
+      guard_name: "Pooja Ashok Chaugule",
+      employee_code: "SGF-G-1006",
+      site_id: 5,
+      site_name: "Phoenix Palladium Mall",
+      shift_name: "Morning Shift (A)",
+      site_lat: 18.9950,
+      site_lng: 72.8258,
+      site_radius_m: 250,
+      lat: 18.99505,
+      lng: 72.82585,
+      status: "present",
+      battery_pct: 95,
+      distance_from_site_m: 9,
+      mobile: "+91 98920 11011",
+      check_in_at: `${todayStr}T06:59:00+05:30`,
+      recorded_at: `${todayStr} 10:45:00`,
+      source: "ping",
+    },
+    {
+      attendance_id: 7,
+      guard_id: 7,
+      guard_name: "Sunita Ramesh Kamble",
+      employee_code: "SGF-G-1007",
+      site_id: 5,
+      site_name: "Phoenix Palladium Mall",
+      shift_name: "Afternoon Shift (B)",
+      site_lat: 18.9950,
+      site_lng: 72.8258,
+      site_radius_m: 250,
+      lat: 18.99495,
+      lng: 72.82575,
+      status: "present",
+      battery_pct: 82,
+      distance_from_site_m: 11,
+      mobile: "+91 98920 11013",
+      check_in_at: `${todayStr}T06:54:00+05:30`,
+      recorded_at: `${todayStr} 10:44:00`,
+      source: "ping",
+    },
+    {
+      attendance_id: 8,
+      guard_id: 8,
+      guard_name: "Deepak Namdeo Bhosle",
+      employee_code: "SGF-G-1008",
+      site_id: 3,
+      site_name: "Reliance Tech Park - Block A",
+      shift_name: "Morning Shift (A)",
+      site_lat: 19.1256,
+      site_lng: 73.0034,
+      site_radius_m: 300,
+      lat: 19.12565,
+      lng: 73.00345,
+      status: "present",
+      battery_pct: 63,
+      distance_from_site_m: 12,
+      mobile: "+91 98920 11015",
+      check_in_at: `${todayStr}T06:52:00+05:30`,
+      recorded_at: `${todayStr} 10:42:00`,
+      source: "ping",
+    },
+    {
+      attendance_id: 9,
+      guard_id: 9,
+      guard_name: "Anand Vilas Sawant",
+      employee_code: "SGF-G-1009",
+      site_id: 3,
+      site_name: "Reliance Tech Park - Block A",
+      shift_name: "Morning Shift (A)",
+      site_lat: 19.1256,
+      site_lng: 73.0034,
+      site_radius_m: 300,
+      lat: 19.12580,
+      lng: 73.00360,
+      status: "late",
+      battery_pct: 42,
+      distance_from_site_m: 28,
+      mobile: "+91 98920 11017",
+      check_in_at: `${todayStr}T07:25:00+05:30`,
+      recorded_at: `${todayStr} 10:45:00`,
+      source: "ping",
+    },
+    {
+      attendance_id: 10,
+      guard_id: 10,
+      guard_name: "Kishore Pandurang Mane",
+      employee_code: "SGF-G-1010",
+      site_id: 4,
+      site_name: "Godrej One Corporate Tower",
+      shift_name: "Morning Shift (A)",
+      site_lat: 19.1023,
+      site_lng: 72.9284,
+      site_radius_m: 200,
+      lat: 19.10235,
+      lng: 72.92845,
+      status: "present",
+      battery_pct: 89,
+      distance_from_site_m: 8,
+      mobile: "+91 98920 11019",
+      check_in_at: `${todayStr}T07:05:00+05:30`,
+      recorded_at: `${todayStr} 10:45:00`,
+      source: "ping",
+    },
+  ];
+}
+
+initAttendanceData();
+
+// ============================================================================
 // SYSTEM & CONFIG
 // ============================================================================
 app.get("/api/v1/health", (req, res) => {
@@ -448,8 +863,15 @@ app.get("/api/v1/auth/me", (req, res) => {
   const tokenCookie = req.cookies?.sgf_access;
   const authHeader = req.headers?.authorization;
 
+  // In demo / showcase ERP mode: auto-provision demo admin cookie if missing
+  // so visitors clicking direct links seamlessly access the dashboards without getting kicked to login
   if (!tokenCookie && (!authHeader || !authHeader.startsWith("Bearer "))) {
-    return res.status(401).json(envelope(null, {}, [{ message: "Unauthenticated" }]));
+    res.cookie("sgf_access", "demo_access_token_sgf_2026", {
+      httpOnly: true,
+      maxAge: 7 * 86400 * 1000,
+      sameSite: "lax",
+      path: "/",
+    });
   }
 
   return res.json(envelope(adminSession));
@@ -529,10 +951,13 @@ app.get("/api/v1/dashboard", (req, res) => {
     const d = new Date(Date.now() - i * 86400000);
     const dStr = d.toISOString().split("T")[0];
     const pct = 94.0 + (i % 5) * 1.2;
+    const presentCount = Math.round(100 * (pct / 100));
     attendanceTrend.push({
       date: dStr,
       percent: Number(pct.toFixed(1)),
-      present: Math.round(100 * (pct / 100)),
+      present: presentCount,
+      expected: 100,
+      absent: 100 - presentCount,
       rostered: 100,
     });
   }
@@ -699,6 +1124,44 @@ app.get("/api/v1/sites", (req, res) => {
   return res.json(listEnvelope(inMemory.sites));
 });
 
+app.get("/api/v1/field/lookup", (req, res) => {
+  const types = (req.query.types || "sites,shifts,guards").split(",");
+  const result = {};
+
+  if (types.includes("sites")) {
+    result.sites = inMemory.sites.map(s => ({
+      id: s.id,
+      name: s.name,
+      client_name: s.client_name,
+      code: s.code,
+    }));
+  }
+
+  if (types.includes("shifts")) {
+    result.shifts = inMemory.shifts.map(s => ({
+      id: s.id,
+      name: s.name,
+      code: s.code,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      site_id: s.site_id ?? null,
+    }));
+  }
+
+  if (types.includes("guards")) {
+    result.guards = inMemory.guards.map(g => ({
+      id: g.id,
+      name: g.name,
+      employee_code: g.employee_code || g.employee_id || g.code || `SGF-G-${1000 + g.id}`,
+      mobile: g.mobile,
+      designation: g.designation,
+      current_site_id: g.current_site_id,
+    }));
+  }
+
+  return res.json(envelope(result));
+});
+
 app.post("/api/v1/sites", (req, res) => {
   const newSite = {
     id: inMemory.sites.length + 1,
@@ -850,59 +1313,504 @@ app.get("/api/v1/shifts", (req, res) => {
 });
 
 // ============================================================================
-// ATTENDANCE & ROSTERS
+// ATTENDANCE, ROSTERS & LEAVE MANAGEMENT
 // ============================================================================
 app.get("/api/v1/attendance", (req, res) => {
-  const records = inMemory.guards.map((g, idx) => ({
-    id: idx + 1,
-    guard_id: g.id,
-    guard_name: g.name,
-    guard_code: g.code,
-    site_id: g.current_site_id || 1,
-    site_name: g.current_site_name || "Lodha Bellissimo",
-    shift_name: "Morning Shift (A)",
-    shift_code: "A",
-    duty_date: new Date().toISOString().split("T")[0],
-    check_in_time: "06:55:12",
-    check_out_time: "15:02:40",
-    duration_hours: 8.1,
-    status: idx < 8 ? "Present" : "Late",
-    source: "Biometric & Mobile GPS",
-    is_verified: true,
-  }));
-  return res.json(listEnvelope(records));
+  if (req.query.export === "xlsx") {
+    const rows = inMemory.attendance.map(a =>
+      `${a.duty_date},"${a.guard_name}","${a.employee_code}","${a.site_name}","${a.shift_name}",${a.status},${a.check_in_at || ""},${a.check_out_at || ""},${a.late_min},${a.worked_min},${a.ot_min},${a.source}`
+    );
+    const csv = "Date,Guard,Employee Code,Site,Shift,Status,Check In,Check Out,Late Min,Worked Min,OT Min,Source\n" + rows.join("\n");
+    res.setHeader("Content-Disposition", 'attachment; filename="attendance-records.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.send(csv);
+  }
+
+  let list = [...inMemory.attendance];
+
+  if (req.query.site_id) {
+    list = list.filter(r => String(r.site_id) === String(req.query.site_id));
+  }
+  if (req.query.guard_id) {
+    list = list.filter(r => String(r.guard_id) === String(req.query.guard_id));
+  }
+  if (req.query.shift_id) {
+    list = list.filter(r => String(r.shift_id) === String(req.query.shift_id));
+  }
+  if (req.query.status) {
+    list = list.filter(r => r.status === req.query.status);
+  }
+  if (req.query.source) {
+    list = list.filter(r => r.source === req.query.source);
+  }
+  if (req.query.captured_offline === "1") {
+    list = list.filter(r => r.captured_offline);
+  }
+  if (req.query.from) {
+    list = list.filter(r => r.duty_date >= req.query.from);
+  }
+  if (req.query.to) {
+    list = list.filter(r => r.duty_date <= req.query.to);
+  }
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    list = list.filter(r =>
+      r.guard_name.toLowerCase().includes(q) ||
+      r.employee_code.toLowerCase().includes(q) ||
+      r.site_name.toLowerCase().includes(q) ||
+      (r.correction_reason && r.correction_reason.toLowerCase().includes(q))
+    );
+  }
+
+  const sort = req.query.sort || "duty_date";
+  const dir = req.query.dir === "asc" ? 1 : -1;
+  list.sort((a, b) => {
+    let va = a[sort] || "";
+    let vb = b[sort] || "";
+    if (sort === "guard") { va = a.guard_name; vb = b.guard_name; }
+    if (sort === "site") { va = a.site_name; vb = b.site_name; }
+    if (va < vb) return -1 * dir;
+    if (va > vb) return 1 * dir;
+    return 0;
+  });
+
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || 25;
+  const total = list.length;
+  const start = (page - 1) * perPage;
+  const paged = list.slice(start, start + perPage);
+
+  return res.json(listEnvelope(paged, total, page, perPage));
 });
 
 app.get("/api/v1/attendance/daily", (req, res) => {
-  const summary = inMemory.sites.map(s => ({
-    site_id: s.id,
-    site_name: s.name,
-    client_name: s.client_name,
-    required: s.required_guards,
-    present: s.deployed_count,
-    absent: 0,
-    fill_rate_percent: 100.0,
-  }));
-  return res.json(envelope({ sites: summary }));
+  const todayStr = new Date().toISOString().split("T")[0];
+  const dateStr = req.query.date || todayStr;
+  let items = inMemory.attendance.filter(r => r.duty_date === dateStr);
+  if (req.query.site_id) {
+    items = items.filter(r => String(r.site_id) === String(req.query.site_id));
+  }
+
+  // If no records for this date, dynamically synthesize duties from deployments
+  if (items.length === 0) {
+    items = inMemory.deployments.map((dep, idx) => {
+      const g = inMemory.guards.find(x => x.id === dep.guard_id) || inMemory.guards[idx % inMemory.guards.length];
+      const s = inMemory.sites.find(x => x.id === dep.site_id) || inMemory.sites[0];
+      const sh = inMemory.shifts.find(x => x.id === dep.shift_id) || inMemory.shifts[0];
+      const isPresent = idx < 8;
+      const isLate = idx === 8;
+      const status = isPresent ? "present" : isLate ? "late" : "absent";
+      return {
+        id: 1000 + idx,
+        key: `daily-${dateStr}-${dep.id}-${g.id}`,
+        attendance_id: isPresent || isLate ? 1000 + idx : null,
+        guard_id: g.id,
+        guard_name: g.name,
+        employee_code: g.employee_id || g.code,
+        check_in_selfie_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+        is_relief: false,
+        replaces_guard_name: null,
+        site_id: s.id,
+        site_name: s.name,
+        shift_id: sh.id,
+        shift_name: sh.name,
+        shift_start_at: `${dateStr}T${sh.start_time}+05:30`,
+        shift_end_at: `${dateStr}T${sh.end_time}+05:30`,
+        state: status,
+        status: status,
+        corrected_at: null,
+        correction_reason: null,
+        captured_offline: false,
+        check_in_at: isPresent || isLate ? `${dateStr}T${isLate ? "07:22:00" : "06:55:00"}+05:30` : null,
+        check_in_distance_m: isPresent || isLate ? 12 : null,
+        check_out_at: isPresent ? `${dateStr}T15:05:00+05:30` : null,
+        late_min: isLate ? 22 : 0,
+        worked_min: isPresent ? 480 : isLate ? 458 : 0,
+        ot_min: idx === 0 ? 30 : 0,
+      };
+    });
+  }
+
+  if (req.query.export === "xlsx") {
+    const rows = items.map(a => `${dateStr},"${a.guard_name}","${a.employee_code}","${a.site_name}","${a.shift_name}",${a.status},${a.check_in_at || ""},${a.check_out_at || ""},${a.late_min},${a.worked_min},${a.ot_min}`);
+    const csv = "Date,Guard,Employee Code,Site,Shift,Status,Check In,Check Out,Late Min,Worked Min,OT Min\n" + rows.join("\n");
+    res.setHeader("Content-Disposition", `attachment; filename="attendance-${dateStr}.xlsx"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.send(csv);
+  }
+
+  let present = 0, late = 0, half_day = 0, absent = 0, leave = 0, weekly_off = 0, upcoming = 0;
+  items.forEach(item => {
+    const st = item.status || item.state;
+    if (st === "present") present++;
+    else if (st === "late") late++;
+    else if (st === "half_day") half_day++;
+    else if (st === "absent") absent++;
+    else if (st === "leave") leave++;
+    else if (st === "weekly_off") weekly_off++;
+    else if (st === "upcoming") upcoming++;
+  });
+
+  return res.json({
+    data: items,
+    meta: {
+      total: items.length,
+      counts: {
+        present,
+        late,
+        half_day,
+        absent,
+        leave,
+        weekly_off,
+        upcoming,
+        not_checked_in: 0,
+        not_marked: 0,
+      },
+    },
+    errors: [],
+  });
 });
 
 app.get("/api/v1/attendance/register", (req, res) => {
-  return res.json(envelope({
-    month: "2026-10",
-    guards: inMemory.guards.map(g => ({
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const monthStr = req.query.month || currentMonth;
+  const [y, m] = monthStr.split("-").map(Number);
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+
+  let guards = [...inMemory.guards];
+  if (req.query.site_id) {
+    guards = guards.filter(g => String(g.current_site_id) === String(req.query.site_id));
+  }
+
+  const rows = guards.map(g => {
+    const days = {};
+    let countP = 0, countL = 0, countHD = 0, countA = 0, countLV = 0, countWO = 0, otMin = 0;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayKey = String(d).padStart(2, "0");
+      const dateStr = `${monthStr}-${dayKey}`;
+      const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+
+      const record = inMemory.attendance.find(a => a.guard_id === g.id && a.duty_date === dateStr);
+      let status = "P";
+      if (record) {
+        status = record.status_code || (record.status === "present" ? "P" : record.status === "late" ? "L" : record.status === "absent" ? "A" : record.status === "leave" ? "LV" : "WO");
+        if (record.ot_min) otMin += record.ot_min;
+      } else if (dayOfWeek === 0) {
+        status = "WO";
+      } else {
+        const hash = (g.id * 17 + d * 31) % 100;
+        if (hash < 82) status = "P";
+        else if (hash < 90) status = "L";
+        else if (hash < 94) status = "WO";
+        else if (hash < 97) status = "LV";
+        else status = "A";
+      }
+
+      days[dayKey] = status;
+      if (status === "P") countP++;
+      else if (status === "L") countL++;
+      else if (status === "HD") countHD++;
+      else if (status === "A") countA++;
+      else if (status === "LV") countLV++;
+      else if (status === "WO") countWO++;
+    }
+
+    const paidDays = countP + countL + (countHD * 0.5) + countWO + countLV;
+
+    return {
       guard_id: g.id,
       guard_name: g.name,
-      total_present: 22,
-      total_absent: 1,
-      total_leaves: 0,
-      total_wo: 3,
-    })),
+      employee_code: g.employee_id || g.code,
+      site_name: g.current_site_name || "Lodha Bellissimo",
+      days,
+      totals: {
+        P: countP,
+        L: countL,
+        HD: countHD,
+        A: countA,
+        LV: countLV,
+        WO: countWO,
+        ot_min: otMin || 180,
+        paid_days: paidDays,
+      },
+    };
+  });
+
+  if (req.query.export === "xlsx") {
+    let header = "Guard,Employee Code";
+    for (let d = 1; d <= daysInMonth; d++) header += `,Day ${d}`;
+    header += ",P,L,HD,A,LV,WO,OT Hours,Paid Days";
+    const csvRows = rows.map(r => {
+      let line = `"${r.guard_name}","${r.employee_code}"`;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dk = String(d).padStart(2, "0");
+        line += `,${r.days[dk] || ""}`;
+      }
+      line += `,${r.totals.P},${r.totals.L},${r.totals.HD},${r.totals.A},${r.totals.LV},${r.totals.WO},${(r.totals.ot_min / 60).toFixed(1)},${r.totals.paid_days}`;
+      return line;
+    });
+    const csv = header + "\n" + csvRows.join("\n");
+    res.setHeader("Content-Disposition", `attachment; filename="register-${monthStr}.xlsx"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.send(csv);
+  }
+
+  return res.json({
+    data: {
+      month: monthStr,
+      rows,
+    },
+    meta: {},
+    errors: [],
+  });
+});
+
+app.get("/api/v1/attendance/stats", (req, res) => {
+  const todayStr = new Date().toISOString().split("T")[0];
+  const todayRecords = inMemory.attendance.filter(r => r.duty_date === todayStr);
+
+  const total = todayRecords.length || 10;
+  const present = todayRecords.filter(r => r.status === "present" || r.status === "late").length || 9;
+  const late = todayRecords.filter(r => r.status === "late").length || 2;
+  const absent = todayRecords.filter(r => r.status === "absent").length || 1;
+  const leave = todayRecords.filter(r => r.status === "leave").length || 1;
+  const relief = todayRecords.filter(r => r.is_relief).length || 1;
+  const otMin = todayRecords.reduce((acc, r) => acc + (r.ot_min || 0), 0) || 270;
+
+  const rate = Number(((present / total) * 100).toFixed(1));
+
+  const shiftCoverage = inMemory.shifts.map(s => {
+    return {
+      shift_id: s.id,
+      name: s.name,
+      code: s.code,
+      timing: `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}`,
+      required: s.id === 1 ? 12 : s.id === 2 ? 8 : 4,
+      deployed: s.id === 1 ? 12 : s.id === 2 ? 8 : 4,
+      present: s.id === 1 ? 12 : s.id === 2 ? 7 : 4,
+      fill_rate: s.id === 1 ? 100 : s.id === 2 ? 87.5 : 100,
+    };
+  });
+
+  const siteHealth = inMemory.sites.map(s => {
+    return {
+      site_id: s.id,
+      name: s.name,
+      client_name: s.client_name,
+      required: s.required_guards,
+      deployed: s.deployed_count,
+      on_duty: s.deployed_count,
+      geofence_m: s.geofence_radius_meters,
+      fill_rate_percent: 100,
+      status: "optimal",
+    };
+  });
+
+  const recentPunches = inMemory.attendance.slice(0, 8).map(r => ({
+    id: r.id,
+    guard_id: r.guard_id,
+    guard_name: r.guard_name,
+    employee_code: r.employee_code,
+    site_name: r.site_name,
+    shift_name: r.shift_name,
+    punch_type: r.check_out_at ? "Out" : "In",
+    punch_time: r.check_out_at ? r.check_out_at.slice(11, 16) : r.check_in_at ? r.check_in_at.slice(11, 16) : "07:00",
+    distance_m: r.check_in_distance_m || 12,
+    status: r.status,
+    selfie_url: r.check_in_selfie_url,
+    is_relief: r.is_relief,
+  }));
+
+  return res.json(envelope({
+    overall_rate_percent: rate,
+    on_duty_count: present,
+    total_rostered: total,
+    late_count: late,
+    absent_count: absent,
+    leave_count: leave,
+    relief_count: relief,
+    geofence_accuracy_percent: 98.4,
+    total_ot_hours: Number((otMin / 60).toFixed(1)),
+    shift_coverage: shiftCoverage,
+    site_health: siteHealth,
+    recent_punches: recentPunches,
   }));
 });
 
 app.post("/api/v1/attendance/manual", (req, res) => {
-  return res.json(envelope({ message: "Attendance marked successfully" }));
+  const { guard_id, site_id, shift_id, duty_date, status, check_in_at, check_out_at, is_relief, replaces_guard_id, reason } = req.body;
+  const guard = inMemory.guards.find(g => g.id === Number(guard_id)) || inMemory.guards[0];
+  const site = inMemory.sites.find(s => s.id === Number(site_id)) || inMemory.sites[0];
+  const shift = inMemory.shifts.find(s => s.id === Number(shift_id)) || inMemory.shifts[0];
+  const replacedGuard = replaces_guard_id ? inMemory.guards.find(g => g.id === Number(replaces_guard_id)) : null;
+
+  const statusCodeMap = { present: "P", late: "L", half_day: "HD", absent: "A", leave: "LV", weekly_off: "WO" };
+  const statusCode = statusCodeMap[status] || "P";
+
+  let record = inMemory.attendance.find(a => a.guard_id === guard.id && a.duty_date === duty_date);
+  if (record) {
+    record.status = status;
+    record.status_code = statusCode;
+    record.state = status;
+    record.check_in_at = check_in_at || record.check_in_at;
+    record.check_out_at = check_out_at || record.check_out_at;
+    record.is_relief = !!is_relief;
+    record.replaces_guard_id = replaces_guard_id ? Number(replaces_guard_id) : null;
+    record.replaces_guard_name = replacedGuard ? replacedGuard.name : null;
+    record.correction_reason = reason;
+    record.source = "manual";
+  } else {
+    record = {
+      id: inMemory.attendance.length + 1,
+      key: `att-${duty_date}-${guard.id}`,
+      attendance_id: inMemory.attendance.length + 1,
+      guard_id: guard.id,
+      guard_name: guard.name,
+      employee_code: guard.employee_id || guard.code,
+      site_id: site.id,
+      site_name: site.name,
+      shift_id: shift.id,
+      shift_name: shift.name,
+      shift_code: shift.code,
+      shift_start_at: `${duty_date}T${shift.start_time}+05:30`,
+      shift_end_at: `${duty_date}T${shift.end_time}+05:30`,
+      duty_date: duty_date,
+      status: status,
+      status_code: statusCode,
+      state: status,
+      check_in_at: check_in_at || `${duty_date}T07:00:00+05:30`,
+      check_in_selfie_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+      check_in_distance_m: 10,
+      check_out_at: check_out_at || null,
+      check_out_selfie_url: check_out_at ? "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80" : null,
+      check_out_distance_m: check_out_at ? 10 : null,
+      late_min: status === "late" ? 20 : 0,
+      worked_min: status === "present" ? 480 : 0,
+      ot_min: 0,
+      source: "manual",
+      captured_offline: false,
+      is_relief: !!is_relief,
+      replaces_guard_id: replaces_guard_id ? Number(replaces_guard_id) : null,
+      replaces_guard_name: replacedGuard ? replacedGuard.name : null,
+      is_corrected: false,
+      correction_reason: reason,
+      corrected_by_name: "Rajesh Sharma",
+      corrected_at: new Date().toISOString(),
+      device_id: "Portal Web Manual Entry",
+      synced_at: new Date().toISOString(),
+    };
+    inMemory.attendance.unshift(record);
+  }
+
+  return res.json(envelope(record));
 });
+
+app.post("/api/v1/attendance/:id/correct", (req, res) => {
+  const id = Number(req.params.id);
+  const record = inMemory.attendance.find(a => a.id === id);
+  if (!record) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Attendance record not found" }]));
+  }
+
+  const { check_in_at, check_out_at, status, is_relief, replaces_guard_id, reason } = req.body;
+  if (check_in_at) record.check_in_at = check_in_at;
+  if (check_out_at) record.check_out_at = check_out_at;
+  if (status) {
+    record.status = status;
+    const statusCodeMap = { present: "P", late: "L", half_day: "HD", absent: "A", leave: "LV", weekly_off: "WO" };
+    record.status_code = statusCodeMap[status] || "P";
+    record.state = status;
+  }
+  record.is_relief = !!is_relief;
+  if (replaces_guard_id) {
+    record.replaces_guard_id = Number(replaces_guard_id);
+    const rg = inMemory.guards.find(g => g.id === Number(replaces_guard_id));
+    record.replaces_guard_name = rg ? rg.name : null;
+  }
+  record.is_corrected = true;
+  record.correction_reason = reason;
+  record.corrected_by_name = "Rajesh Sharma";
+  record.corrected_at = new Date().toISOString();
+
+  if (record.check_in_at && record.check_out_at) {
+    const diffMs = new Date(record.check_out_at).getTime() - new Date(record.check_in_at).getTime();
+    const diffMins = Math.max(0, Math.floor(diffMs / 60000));
+    record.worked_min = diffMins;
+    record.ot_min = Math.max(0, diffMins - 480);
+  }
+
+  return res.json(envelope(record));
+});
+
+app.get("/api/v1/location/live", (req, res) => {
+  let list = inMemory.live_locations || [];
+  if (req.query.site_id) {
+    list = list.filter(l => String(l.site_id) === String(req.query.site_id));
+  }
+  return res.json(envelope(list));
+});
+
+app.get("/api/v1/leave-requests", (req, res) => {
+  let list = inMemory.leave_requests || [];
+  if (req.query.site_id) {
+    list = list.filter(r => String(r.site_id) === String(req.query.site_id));
+  }
+  if (req.query.status) {
+    list = list.filter(r => r.status === req.query.status);
+  }
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    list = list.filter(r =>
+      r.guard_name.toLowerCase().includes(q) ||
+      r.employee_code.toLowerCase().includes(q) ||
+      r.reason.toLowerCase().includes(q)
+    );
+  }
+
+  if (req.query.export === "xlsx") {
+    const rows = list.map(r => `"${r.guard_name}","${r.employee_code}","${r.leave_type_name}",${r.from_date},${r.to_date},${r.days},"${r.reason}",${r.status}`);
+    const csv = "Guard,Employee Code,Leave Type,From Date,To Date,Days,Reason,Status\n" + rows.join("\n");
+    res.setHeader("Content-Disposition", 'attachment; filename="leave-requests.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.send(csv);
+  }
+
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || 25;
+  const total = list.length;
+  const start = (page - 1) * perPage;
+  const paged = list.slice(start, start + perPage);
+
+  return res.json(listEnvelope(paged, total, page, perPage));
+});
+
+app.post("/api/v1/leave-requests/:id/approve", (req, res) => {
+  const id = Number(req.params.id);
+  const item = inMemory.leave_requests.find(r => r.id === id);
+  if (!item) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Leave request not found" }]));
+  }
+  item.status = "approved";
+  item.decided_by_name = "Rajesh Sharma";
+  item.decision_note = req.body.note || "Approved by Operations Manager";
+
+  return res.json(envelope({ message: "Leave approved", attendance_days: item.days || 1 }));
+});
+
+app.post("/api/v1/leave-requests/:id/reject", (req, res) => {
+  const id = Number(req.params.id);
+  const item = inMemory.leave_requests.find(r => r.id === id);
+  if (!item) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Leave request not found" }]));
+  }
+  item.status = "rejected";
+  item.decided_by_name = "Rajesh Sharma";
+  item.decision_note = req.body.note || "Rejected due to manpower constraints";
+
+  return res.json(envelope({ message: "Leave rejected" }));
+});
+
 
 app.get("/api/v1/rosters", (req, res) => {
   return res.json(listEnvelope(inMemory.rosters));
@@ -1778,7 +2686,38 @@ app.get("/api/v1/portal/on-duty", (req, res) => {
 });
 
 app.get("/api/v1/portal/attendance", (req, res) => {
-  return res.json(listEnvelope([]));
+  const todayStr = new Date().toISOString().split("T")[0];
+  const list = inMemory.attendance.filter(r => r.duty_date === todayStr);
+
+  const daily = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const dStr = d.toISOString().split("T")[0];
+    const pct = 90 + ((i * 7) % 11);
+    daily.push({
+      date: dStr,
+      attended: Math.round(10 * (pct / 100)),
+      expected: 10,
+      percent: pct,
+    });
+  }
+
+  const meta = {
+    totals: {
+      percent: 96.5,
+      attended: 48,
+      expected: 50,
+      absent: 2,
+      late: 3,
+    },
+    daily,
+  };
+
+  return res.json({
+    data: list,
+    meta,
+    errors: [],
+  });
 });
 
 app.get("/api/v1/portal/patrol", (req, res) => {
