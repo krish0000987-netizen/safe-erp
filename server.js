@@ -753,6 +753,296 @@ function initAttendanceData() {
 }
 
 initAttendanceData();
+initPatrolData();
+
+
+// ============================================================================
+// PATROL STORE INITIALIZER
+// ============================================================================
+function initPatrolData() {
+  const todayStr = new Date().toISOString().split("T")[0];
+  const sites = inMemory.sites;
+  const guards = inMemory.guards;
+  const shifts = inMemory.shifts;
+
+  // 1. Checkpoints
+  inMemory.checkpoints = [
+    { id: 1, site_id: 1, site_name: "Lodha Bellissimo", name: "Main Vehicular Entry Gate", tag_type: "qr", tag_code: "SGF-CP-LOD-01", lat: 18.9912, lng: 72.8315, sort_order: 1, is_active: 1 },
+    { id: 2, site_id: 1, site_name: "Lodha Bellissimo", name: "Tower A Ground Lobby", tag_type: "nfc", tag_code: "04:A2:3B:1C:89:D2", lat: 18.9915, lng: 72.8318, sort_order: 2, is_active: 1 },
+    { id: 3, site_id: 1, site_name: "Lodha Bellissimo", name: "Basement Level B1 Pump Room", tag_type: "qr", tag_code: "SGF-CP-LOD-03", lat: 18.9911, lng: 72.8313, sort_order: 3, is_active: 1 },
+    { id: 4, site_id: 2, site_name: "HDFC Bank BKC Complex", name: "Executive Reception Turnstile", tag_type: "nfc", tag_code: "04:C5:7E:2F:10:A1", lat: 19.0665, lng: 72.8682, sort_order: 1, is_active: 1 },
+    { id: 5, site_id: 2, site_name: "HDFC Bank BKC Complex", name: "Cash Currency Vault Antechamber", tag_type: "nfc", tag_code: "04:D9:8A:4B:33:C7", lat: 19.0667, lng: 72.8685, sort_order: 2, is_active: 1 },
+    { id: 6, site_id: 2, site_name: "HDFC Bank BKC Complex", name: "North Perimeter Fire Exit", tag_type: "qr", tag_code: "SGF-CP-HDF-03", lat: 19.0663, lng: 72.8680, sort_order: 3, is_active: 1 },
+    { id: 7, site_id: 3, site_name: "Reliance Tech Park - Block A", name: "Server Hall 4 Entry", tag_type: "nfc", tag_code: "04:E1:92:5C:44:88", lat: 19.1256, lng: 73.0034, sort_order: 1, is_active: 1 },
+    { id: 8, site_id: 3, site_name: "Reliance Tech Park - Block A", name: "Perimeter Patrol Post 8", tag_type: "qr", tag_code: "SGF-CP-RCP-02", lat: 19.1259, lng: 73.0039, sort_order: 2, is_active: 1 },
+    { id: 9, site_id: 5, site_name: "Phoenix Palladium Mall", name: "Grand Galleria South Gate", tag_type: "qr", tag_code: "SGF-CP-PHX-01", lat: 18.9950, lng: 72.8258, sort_order: 1, is_active: 1 },
+    { id: 10, site_id: 5, site_name: "Phoenix Palladium Mall", name: "Multiplex Level 3 Emergency Stairs", tag_type: "qr", tag_code: "SGF-CP-PHX-02", lat: 18.9954, lng: 72.8262, sort_order: 2, is_active: 1 },
+    { id: 11, site_id: 4, site_name: "Godrej One Corporate Tower", name: "Podium Level Executive Lounge", tag_type: "nfc", tag_code: "04:F7:11:8A:99:EE", lat: 19.1023, lng: 72.9284, sort_order: 1, is_active: 1 },
+    { id: 12, site_id: 4, site_name: "Godrej One Corporate Tower", name: "Rear Boundary Loading Bay", tag_type: "qr", tag_code: "SGF-CP-GOD-02", lat: 19.1026, lng: 72.9288, sort_order: 2, is_active: 1 },
+  ];
+
+  // 2. Patrol Routes
+  inMemory.patrol_routes = [
+    {
+      id: 1,
+      site_id: 1,
+      site_name: "Lodha Bellissimo",
+      name: "Perimeter & Basements Night Round",
+      point_names: "Main Vehicular Entry Gate → Tower A Ground Lobby → Basement Level B1 Pump Room",
+      schedules_count: 1,
+      is_active: 1,
+      points: [
+        { checkpoint_id: 1, name: "Main Vehicular Entry Gate" },
+        { checkpoint_id: 2, name: "Tower A Ground Lobby" },
+        { checkpoint_id: 3, name: "Basement Level B1 Pump Room" },
+      ],
+    },
+    {
+      id: 2,
+      site_id: 2,
+      site_name: "HDFC Bank BKC Complex",
+      name: "Vault & Financial Perimeter Inspection",
+      point_names: "Executive Reception Turnstile → Cash Currency Vault Antechamber → North Perimeter Fire Exit",
+      schedules_count: 1,
+      is_active: 1,
+      points: [
+        { checkpoint_id: 4, name: "Executive Reception Turnstile" },
+        { checkpoint_id: 5, name: "Cash Currency Vault Antechamber" },
+        { checkpoint_id: 6, name: "North Perimeter Fire Exit" },
+      ],
+    },
+    {
+      id: 3,
+      site_id: 3,
+      site_name: "Reliance Tech Park - Block A",
+      name: "Campus Tech Perimeter Patrol",
+      point_names: "Server Hall 4 Entry → Perimeter Patrol Post 8",
+      schedules_count: 1,
+      is_active: 1,
+      points: [
+        { checkpoint_id: 7, name: "Server Hall 4 Entry" },
+        { checkpoint_id: 8, name: "Perimeter Patrol Post 8" },
+      ],
+    },
+    {
+      id: 4,
+      site_id: 5,
+      site_name: "Phoenix Palladium Mall",
+      name: "Commercial Concourse & Emergency Fire Exits",
+      point_names: "Grand Galleria South Gate → Multiplex Level 3 Emergency Stairs",
+      schedules_count: 1,
+      is_active: 1,
+      points: [
+        { checkpoint_id: 9, name: "Grand Galleria South Gate" },
+        { checkpoint_id: 10, name: "Multiplex Level 3 Emergency Stairs" },
+      ],
+    },
+    {
+      id: 5,
+      site_id: 4,
+      site_name: "Godrej One Corporate Tower",
+      name: "Podium & Perimeter Security Walk",
+      point_names: "Podium Level Executive Lounge → Rear Boundary Loading Bay",
+      schedules_count: 1,
+      is_active: 1,
+      points: [
+        { checkpoint_id: 11, name: "Podium Level Executive Lounge" },
+        { checkpoint_id: 12, name: "Rear Boundary Loading Bay" },
+      ],
+    },
+  ];
+
+  // 3. Patrol Schedules
+  inMemory.patrol_schedules = [
+    { id: 1, route_id: 1, route_name: "Perimeter & Basements Night Round", site_id: 1, site_name: "Lodha Bellissimo", shift_id: 3, shift_name: "Night Shift (C)", interval_min: 120, start_time: "23:00", end_time: "07:00", grace_min: 15, is_active: 1 },
+    { id: 2, route_id: 2, route_name: "Vault & Financial Perimeter Inspection", site_id: 2, site_name: "HDFC Bank BKC Complex", shift_id: 1, shift_name: "Morning Shift (A)", interval_min: 60, start_time: "07:00", end_time: "15:00", grace_min: 10, is_active: 1 },
+    { id: 3, route_id: 3, route_name: "Campus Tech Perimeter Patrol", site_id: 3, site_name: "Reliance Tech Park - Block A", shift_id: 2, shift_name: "Afternoon Shift (B)", interval_min: 120, start_time: "15:00", end_time: "23:00", grace_min: 15, is_active: 1 },
+    { id: 4, route_id: 4, route_name: "Commercial Concourse & Emergency Fire Exits", site_id: 5, site_name: "Phoenix Palladium Mall", shift_id: 2, shift_name: "Afternoon Shift (B)", interval_min: 90, start_time: "14:00", end_time: "22:00", grace_min: 15, is_active: 1 },
+    { id: 5, route_id: 5, route_name: "Podium & Perimeter Security Walk", site_id: 4, site_name: "Godrej One Corporate Tower", shift_id: 1, shift_name: "Morning Shift (A)", interval_min: 180, start_time: "08:00", end_time: "17:00", grace_min: 20, is_active: 1 },
+  ];
+
+  // 4. Generate 14 days of realistic Patrol Rounds and Scans
+  const rounds = [];
+  const scans = [];
+  let roundIdCounter = 1;
+  let scanIdCounter = 1;
+
+  for (let dayOffset = 13; dayOffset >= 0; dayOffset--) {
+    const d = new Date(Date.now() - dayOffset * 86400000);
+    const dateStr = d.toISOString().split("T")[0];
+    const isToday = dayOffset === 0;
+
+    // Define schedule times for each site
+    const roundSlots = [
+      { hour: 6, routeIdx: 0, guardIdx: 0 },
+      { hour: 8, routeIdx: 1, guardIdx: 2 },
+      { hour: 10, routeIdx: 1, guardIdx: 3 },
+      { hour: 12, routeIdx: 1, guardIdx: 4 },
+      { hour: 14, routeIdx: 3, guardIdx: 5 },
+      { hour: 16, routeIdx: 2, guardIdx: 8 },
+      { hour: 18, routeIdx: 3, guardIdx: 6 },
+      { hour: 20, routeIdx: 4, guardIdx: 9 },
+      { hour: 22, routeIdx: 2, guardIdx: 7 },
+      { hour: 23, routeIdx: 0, guardIdx: 1 },
+    ];
+
+    roundSlots.forEach((slot, sIdx) => {
+      const route = inMemory.patrol_routes[slot.routeIdx] || inMemory.patrol_routes[0];
+      const guard = inMemory.guards[slot.guardIdx] || inMemory.guards[0];
+      const site = inMemory.sites.find(s => s.id === route.site_id) || inMemory.sites[0];
+      const hourStr = String(slot.hour).padStart(2, "0");
+      const dueAt = `${dateStr}T${hourStr}:00:00+05:30`;
+
+      let status = "completed";
+      let pointsDone = route.points.length;
+      let completedAt = `${dateStr}T${hourStr}:24:18+05:30`;
+      let alertedAt = null;
+
+      if (isToday) {
+        if (slot.hour > 18) {
+          status = "pending";
+          pointsDone = 0;
+          completedAt = null;
+        } else if (slot.hour === 16) {
+          status = "partial";
+          pointsDone = Math.max(1, route.points.length - 1);
+          completedAt = `${dateStr}T${hourStr}:28:05+05:30`;
+        }
+      } else {
+        if (sIdx === 3 && dayOffset % 4 === 0) {
+          status = "missed";
+          pointsDone = 0;
+          completedAt = null;
+          alertedAt = `${dateStr}T${hourStr}:15:00+05:30`;
+        } else if (sIdx === 6 && dayOffset % 3 === 0) {
+          status = "partial";
+          pointsDone = Math.max(1, route.points.length - 1);
+          completedAt = `${dateStr}T${hourStr}:29:40+05:30`;
+        }
+      }
+
+      const roundPoints = route.points.map((pt, pIdx) => {
+        const isScanned = status === "completed" || (status === "partial" && pIdx < pointsDone);
+        const scanMinute = 5 + (pIdx * 7);
+        const scanMinStr = String(scanMinute).padStart(2, "0");
+        const scannedAt = isScanned ? `${dateStr}T${hourStr}:${scanMinStr}:22+05:30` : null;
+
+        if (isScanned) {
+          const cp = inMemory.checkpoints.find(c => c.id === pt.checkpoint_id) || { name: pt.name, id: pt.checkpoint_id, lat: 18.99, lng: 72.83 };
+          scans.push({
+            id: scanIdCounter++,
+            scanned_at: scannedAt,
+            checkpoint_id: pt.checkpoint_id,
+            checkpoint_name: pt.name,
+            site_id: site.id,
+            site_name: site.name,
+            guard_id: guard.id,
+            guard_name: guard.name,
+            distance_m: Number((1.2 + (pIdx * 1.8)).toFixed(1)),
+            round_id: roundIdCounter,
+            captured_offline: pIdx === 2 ? 1 : 0,
+            photo_url: pIdx === 0 ? "https://images.unsplash.com/photo-1541888946425-d0fbb18615f3?w=300&auto=format&fit=crop&q=80" : null,
+          });
+        }
+
+        return {
+          checkpoint_id: pt.checkpoint_id,
+          name: pt.name,
+          scanned_at: scannedAt,
+        };
+      });
+
+      rounds.push({
+        id: roundIdCounter++,
+        due_at: dueAt,
+        site_id: site.id,
+        site_name: site.name,
+        route_id: route.id,
+        route_name: route.name,
+        guard_id: guard.id,
+        guard_name: guard.name,
+        status,
+        points_done: pointsDone,
+        points_total: route.points.length,
+        completed_at: completedAt,
+        alerted_at: alertedAt,
+        points: roundPoints,
+      });
+    });
+  }
+
+  inMemory.patrol_rounds = rounds;
+  inMemory.patrol_scans = scans;
+
+  // 5. Site Visits (Supervisor Audits)
+  inMemory.site_visits = [
+    {
+      id: 1,
+      site_id: 1,
+      site_name: "Lodha Bellissimo",
+      user_name: "Vikram Deshmukh",
+      visited_at: `${todayStr}T07:45:00+05:30`,
+      distance_m: 12,
+      inside_fence: true,
+      guards_present: 12,
+      rating: 5,
+      remarks: "Turnout crisp, gate log register maintained up to date, morning parade conducted.",
+      photo_url: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&auto=format&fit=crop&q=80",
+    },
+    {
+      id: 2,
+      site_id: 2,
+      site_name: "HDFC Bank BKC Complex",
+      user_name: "Satish Pawar",
+      visited_at: `${todayStr}T11:30:00+05:30`,
+      distance_m: 8,
+      inside_fence: true,
+      guards_present: 18,
+      rating: 5,
+      remarks: "Vault access control logs verified, CCTV control room coordination seamless.",
+      photo_url: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&auto=format&fit=crop&q=80",
+    },
+    {
+      id: 3,
+      site_id: 5,
+      site_name: "Phoenix Palladium Mall",
+      user_name: "Nitin Sawant",
+      visited_at: `${todayStr}T14:15:00+05:30`,
+      distance_m: 15,
+      inside_fence: true,
+      guards_present: 30,
+      rating: 4,
+      remarks: "Baggage scanner queue managed efficiently during afternoon shopping rush.",
+      photo_url: "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=300&auto=format&fit=crop&q=80",
+    },
+    {
+      id: 4,
+      site_id: 3,
+      site_name: "Reliance Tech Park - Block A",
+      user_name: "Ganesh Shinde",
+      visited_at: new Date(Date.now() - 86400000).toISOString(),
+      distance_m: 14,
+      inside_fence: true,
+      guards_present: 25,
+      rating: 5,
+      remarks: "Server room access control checks 100% compliant, night perimeter log clean.",
+      photo_url: "https://images.unsplash.com/photo-1577495508048-b635879837f1?w=300&auto=format&fit=crop&q=80",
+    },
+    {
+      id: 5,
+      site_id: 4,
+      site_name: "Godrej One Corporate Tower",
+      user_name: "Ajay More",
+      visited_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+      distance_m: 9,
+      inside_fence: true,
+      guards_present: 15,
+      rating: 4,
+      remarks: "Visitor badge kiosk operational. Fire exit doors inspected and unlocked.",
+      photo_url: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=300&auto=format&fit=crop&q=80",
+    },
+  ];
+}
 
 // ============================================================================
 // SYSTEM & CONFIG
@@ -1873,49 +2163,611 @@ app.get("/api/v1/manpower-requests", (req, res) => {
 });
 
 // ============================================================================
-// PATROL & CHECKPOINTS
+// ============================================================================
+// PATROL & CHECKPOINTS ENDPOINTS
 // ============================================================================
 app.get("/api/v1/patrol/report", (req, res) => {
+  const targetDate = req.query.date || new Date().toISOString().split("T")[0];
+  let rounds = inMemory.patrol_rounds.filter(r => r.due_at && r.due_at.startsWith(targetDate));
+
+  if (req.query.site_id) {
+    rounds = rounds.filter(r => String(r.site_id) === String(req.query.site_id));
+  }
+  if (req.query.shift_id) {
+    rounds = rounds.filter(r => String(r.shift_id) === String(req.query.shift_id));
+  }
+
+  // Calculate totals
+  const totalRounds = rounds.length;
+  const completed = rounds.filter(r => r.status === "completed").length;
+  const partial = rounds.filter(r => r.status === "partial").length;
+  const missed = rounds.filter(r => r.status === "missed").length;
+  const pointsDone = rounds.reduce((sum, r) => sum + (r.points_done || 0), 0);
+  const pointsTotal = rounds.reduce((sum, r) => sum + (r.points_total || 0), 0);
+  const compliancePct = pointsTotal > 0 ? Number(((pointsDone / pointsTotal) * 100).toFixed(1)) : 100.0;
+
+  if (req.query.export === "xlsx") {
+    const csvRows = rounds.map(r => `"${r.due_at}","${r.site_name}","${r.route_name}","${r.guard_name || ""}","${r.status}",${r.points_done},${r.points_total}`);
+    const csv = "Due (IST),Site,Route,Guard,Status,Points Done,Points Total\n" + csvRows.join("\n");
+    res.setHeader("Content-Disposition", `attachment; filename="patrol-${targetDate}.xlsx"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.send(csv);
+  }
+
+  if (req.query.export === "pdf") {
+    res.setHeader("Content-Disposition", `attachment; filename="patrol-${targetDate}.pdf"`);
+    res.setHeader("Content-Type", "application/pdf");
+    return res.send(Buffer.from("%PDF-1.4 demo patrol report"));
+  }
+
   return res.json(envelope({
     totals: {
-      rounds: 12,
-      completed: 11,
-      partial: 1,
-      missed: 0,
-      compliance_pct: 95.8,
+      rounds: totalRounds,
+      completed,
+      partial,
+      missed,
+      compliance_pct: compliancePct,
+      points_done: pointsDone,
+      points_total: pointsTotal,
     },
-    rounds: inMemory.patrol_rounds,
+    rounds,
   }));
 });
 
 app.get("/api/v1/patrol/rounds", (req, res) => {
-  return res.json(listEnvelope(inMemory.patrol_rounds));
+  let items = [...inMemory.patrol_rounds];
+
+  if (req.query.site_id) {
+    items = items.filter(r => String(r.site_id) === String(req.query.site_id));
+  }
+  if (req.query.status) {
+    items = items.filter(r => r.status === req.query.status);
+  }
+  if (req.query.from) {
+    items = items.filter(r => r.due_at && r.due_at.slice(0, 10) >= req.query.from);
+  }
+  if (req.query.to) {
+    items = items.filter(r => r.due_at && r.due_at.slice(0, 10) <= req.query.to);
+  }
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    items = items.filter(r =>
+      (r.site_name && r.site_name.toLowerCase().includes(q)) ||
+      (r.route_name && r.route_name.toLowerCase().includes(q)) ||
+      (r.guard_name && r.guard_name.toLowerCase().includes(q))
+    );
+  }
+
+  // Sorting
+  const sort = req.query.sort || "due_at";
+  const dir = req.query.dir || "desc";
+  items.sort((a, b) => {
+    const valA = a[sort] || "";
+    const valB = b[sort] || "";
+    return dir === "asc" ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+  });
+
+  if (req.query.export === "xlsx") {
+    const csvRows = items.map(r => `"${r.due_at}","${r.site_name}","${r.route_name}","${r.guard_name || ""}","${r.status}",${r.points_done},${r.points_total},"${r.completed_at || ""}","${r.alerted_at || ""}"`);
+    const csv = "Due,Site,Route,Guard,Status,Points Done,Points Total,Completed At,Alerted At\n" + csvRows.join("\n");
+    res.setHeader("Content-Disposition", 'attachment; filename="patrol-rounds.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.send(csv);
+  }
+
+  const page = Number(req.query.page) || 1;
+  const perPage = Number(req.query.per_page) || 25;
+  const start = (page - 1) * perPage;
+  const paginated = items.slice(start, start + perPage);
+
+  return res.json(listEnvelope(paginated, items.length, page, perPage));
 });
 
+app.get("/api/v1/patrol/stats", (req, res) => {
+  const todayStr = new Date().toISOString().split("T")[0];
+  const todayRounds = inMemory.patrol_rounds.filter(r => r.due_at && r.due_at.startsWith(todayStr));
+  const completed = todayRounds.filter(r => r.status === "completed").length;
+  const partial = todayRounds.filter(r => r.status === "partial").length;
+  const missed = todayRounds.filter(r => r.status === "missed").length;
+  const pending = todayRounds.filter(r => r.status === "pending").length;
+  const pointsDone = todayRounds.reduce((sum, r) => sum + (r.points_done || 0), 0);
+  const pointsTotal = todayRounds.reduce((sum, r) => sum + (r.points_total || 0), 0);
+  const compliancePct = pointsTotal > 0 ? Number(((pointsDone / pointsTotal) * 100).toFixed(1)) : 100.0;
+
+  const sitePerformance = inMemory.sites.map(s => {
+    const siteRounds = todayRounds.filter(r => r.site_id === s.id);
+    const siteDone = siteRounds.reduce((sum, r) => sum + (r.points_done || 0), 0);
+    const siteTot = siteRounds.reduce((sum, r) => sum + (r.points_total || 0), 0);
+    const siteCompl = siteTot > 0 ? Number(((siteDone / siteTot) * 100).toFixed(1)) : 100;
+    return {
+      site_id: s.id,
+      site_name: s.name,
+      total_rounds: siteRounds.length,
+      completed_rounds: siteRounds.filter(r => r.status === "completed").length,
+      missed_rounds: siteRounds.filter(r => r.status === "missed").length,
+      compliance_percent: siteCompl,
+      checkpoints_count: inMemory.checkpoints.filter(c => c.site_id === s.id).length,
+    };
+  });
+
+  return res.json(envelope({
+    today: {
+      total_rounds: todayRounds.length,
+      completed,
+      partial,
+      missed,
+      pending,
+      points_done: pointsDone,
+      points_total: pointsTotal,
+      compliance_pct: compliancePct,
+      active_checkpoints: inMemory.checkpoints.filter(c => c.is_active).length,
+      total_routes: inMemory.patrol_routes.filter(r => r.is_active).length,
+    },
+    site_performance: sitePerformance,
+    recent_scans: inMemory.patrol_scans.slice(0, 10),
+  }));
+});
+
+// CHECKPOINTS CRUD
 app.get("/api/v1/checkpoints", (req, res) => {
-  return res.json(listEnvelope(inMemory.checkpoints));
+  let items = [...inMemory.checkpoints];
+  const siteId = req.query["filter[site_id]"] || req.query.site_id;
+  const tagType = req.query["filter[tag_type]"] || req.query.tag_type;
+  const isActive = req.query["filter[is_active]"] || req.query.is_active;
+
+  if (siteId) {
+    items = items.filter(c => String(c.site_id) === String(siteId));
+  }
+  if (tagType) {
+    items = items.filter(c => c.tag_type === tagType);
+  }
+  if (isActive !== undefined && isActive !== "") {
+    items = items.filter(c => String(c.is_active) === String(isActive));
+  }
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    items = items.filter(c =>
+      (c.name && c.name.toLowerCase().includes(q)) ||
+      (c.tag_code && c.tag_code.toLowerCase().includes(q)) ||
+      (c.site_name && c.site_name.toLowerCase().includes(q))
+    );
+  }
+
+  const sort = req.query.sort || "sort_order";
+  const dir = req.query.dir || "asc";
+  items.sort((a, b) => {
+    const valA = a[sort] ?? 0;
+    const valB = b[sort] ?? 0;
+    return dir === "asc" ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+  });
+
+  if (req.query.export === "xlsx") {
+    const csvRows = items.map(c => `"${c.name}","${c.site_name}","${c.tag_type}","${c.tag_code}",${c.lat || ""},${c.lng || ""},${c.sort_order},${c.is_active ? "Active" : "Inactive"}`);
+    const csv = "Name,Site,Tag Type,Tag Code,Lat,Lng,Sort Order,Status\n" + csvRows.join("\n");
+    res.setHeader("Content-Disposition", 'attachment; filename="checkpoints.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.send(csv);
+  }
+
+  const page = Number(req.query.page) || 1;
+  const perPage = Number(req.query.per_page) || 50;
+  const start = (page - 1) * perPage;
+  const paginated = items.slice(start, start + perPage);
+
+  return res.json(listEnvelope(paginated, items.length, page, perPage));
+});
+
+app.post("/api/v1/checkpoints", (req, res) => {
+  const { site_id, name, tag_type, tag_code, lat, lng, sort_order, is_active } = req.body || {};
+  if (!name || !site_id) {
+    return res.status(422).json(envelope(null, {}, [{ field: "name", message: "Name and site required" }]));
+  }
+
+  const site = inMemory.sites.find(s => s.id === Number(site_id)) || inMemory.sites[0];
+  const newCp = {
+    id: inMemory.checkpoints.length + 1,
+    site_id: site.id,
+    site_name: site.name,
+    name,
+    tag_type: tag_type || "qr",
+    tag_code: tag_code || (tag_type === "nfc" ? "04:XX:YY:ZZ:11:22" : `SGF-CP-${(site.name || "STE").slice(0, 3).toUpperCase()}-${String(inMemory.checkpoints.length + 1).padStart(2, "0")}`),
+    lat: lat ? Number(lat) : site.latitude,
+    lng: lng ? Number(lng) : site.longitude,
+    sort_order: Number(sort_order) || inMemory.checkpoints.length + 1,
+    is_active: is_active !== undefined ? Number(is_active) : 1,
+  };
+
+  inMemory.checkpoints.push(newCp);
+  return res.status(201).json(envelope(newCp));
+});
+
+app.patch("/api/v1/checkpoints/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.checkpoints.findIndex(c => c.id === id);
+  if (idx === -1) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Checkpoint not found" }]));
+  }
+
+  const updated = { ...inMemory.checkpoints[idx], ...req.body };
+  if (req.body.site_id) {
+    const site = inMemory.sites.find(s => s.id === Number(req.body.site_id));
+    if (site) updated.site_name = site.name;
+  }
+  inMemory.checkpoints[idx] = updated;
+  return res.json(envelope(updated));
+});
+
+app.delete("/api/v1/checkpoints/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.checkpoints = inMemory.checkpoints.filter(c => c.id !== id);
+  // Also clean up from routes
+  inMemory.patrol_routes.forEach(r => {
+    r.points = (r.points || []).filter(p => p.checkpoint_id !== id);
+    r.point_names = r.points.map(p => p.name).join(" → ");
+  });
+  return res.json(envelope({ message: "Checkpoint deleted" }));
 });
 
 app.get("/api/v1/checkpoints/qr-sheet", (req, res) => {
+  const siteId = req.query.site_id;
+  const site = inMemory.sites.find(s => String(s.id) === String(siteId));
+  const siteName = site ? site.name.replace(/\s+/g, "_") : "All_Sites";
+  res.setHeader("Content-Disposition", `attachment; filename="Checkpoints_QR_Sheet_${siteName}.pdf"`);
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", 'attachment; filename="Checkpoints_QR_Sheet.pdf"');
-  return res.send(Buffer.from("%PDF-1.4 demo qr sheet"));
+  return res.send(Buffer.from("%PDF-1.4 demo qr sheet pdf"));
 });
 
+// PATROL ROUTES CRUD
 app.get("/api/v1/patrol-routes", (req, res) => {
-  return res.json(listEnvelope(inMemory.patrol_routes));
+  let items = [...inMemory.patrol_routes];
+  const siteId = req.query["filter[site_id]"] || req.query.site_id;
+
+  if (siteId) {
+    items = items.filter(r => String(r.site_id) === String(siteId));
+  }
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    items = items.filter(r =>
+      (r.name && r.name.toLowerCase().includes(q)) ||
+      (r.site_name && r.site_name.toLowerCase().includes(q))
+    );
+  }
+
+  const sort = req.query.sort || "name";
+  const dir = req.query.dir || "asc";
+  items.sort((a, b) => {
+    const valA = a[sort] || "";
+    const valB = b[sort] || "";
+    return dir === "asc" ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+  });
+
+  if (req.query.export === "xlsx") {
+    const csvRows = items.map(r => `"${r.name}","${r.site_name}","${r.point_names || ""}",${r.schedules_count || 1},${r.is_active ? "Active" : "Inactive"}`);
+    const csv = "Route Name,Site,Checkpoints In Order,Schedules,Status\n" + csvRows.join("\n");
+    res.setHeader("Content-Disposition", 'attachment; filename="patrol-routes.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.send(csv);
+  }
+
+  const page = Number(req.query.page) || 1;
+  const perPage = Number(req.query.per_page) || 50;
+  const start = (page - 1) * perPage;
+  const paginated = items.slice(start, start + perPage);
+
+  return res.json(listEnvelope(paginated, items.length, page, perPage));
 });
 
+app.post("/api/v1/patrol-routes", (req, res) => {
+  const { site_id, name, is_active, points } = req.body || {};
+  if (!name || !site_id) {
+    return res.status(422).json(envelope(null, {}, [{ field: "name", message: "Name and site required" }]));
+  }
+
+  const site = inMemory.sites.find(s => s.id === Number(site_id)) || inMemory.sites[0];
+  const pointIds = Array.isArray(points) ? points : [];
+  const mappedPoints = pointIds.map(cpId => {
+    const cp = inMemory.checkpoints.find(c => c.id === Number(cpId));
+    return {
+      checkpoint_id: Number(cpId),
+      name: cp ? cp.name : `Checkpoint #${cpId}`,
+    };
+  });
+
+  const newRoute = {
+    id: inMemory.patrol_routes.length + 1,
+    site_id: site.id,
+    site_name: site.name,
+    name,
+    point_names: mappedPoints.map(p => p.name).join(" → "),
+    schedules_count: 0,
+    is_active: is_active !== undefined ? Number(is_active) : 1,
+    points: mappedPoints,
+  };
+
+  inMemory.patrol_routes.push(newRoute);
+  return res.status(201).json(envelope(newRoute));
+});
+
+app.patch("/api/v1/patrol-routes/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.patrol_routes.findIndex(r => r.id === id);
+  if (idx === -1) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Route not found" }]));
+  }
+
+  const existing = inMemory.patrol_routes[idx];
+  const updated = { ...existing, ...req.body };
+
+  if (req.body.points) {
+    const pointIds = Array.isArray(req.body.points) ? req.body.points : [];
+    updated.points = pointIds.map(cpId => {
+      const cp = inMemory.checkpoints.find(c => c.id === Number(cpId));
+      return {
+        checkpoint_id: Number(cpId),
+        name: cp ? cp.name : `Checkpoint #${cpId}`,
+      };
+    });
+    updated.point_names = updated.points.map(p => p.name).join(" → ");
+  }
+
+  inMemory.patrol_routes[idx] = updated;
+  return res.json(envelope(updated));
+});
+
+app.delete("/api/v1/patrol-routes/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.patrol_routes = inMemory.patrol_routes.filter(r => r.id !== id);
+  inMemory.patrol_schedules = inMemory.patrol_schedules.filter(s => s.route_id !== id);
+  return res.json(envelope({ message: "Route deleted" }));
+});
+
+// PATROL SCHEDULES CRUD
 app.get("/api/v1/patrol-schedules", (req, res) => {
-  return res.json(listEnvelope(inMemory.patrol_schedules));
+  let items = [...inMemory.patrol_schedules];
+  const siteId = req.query["filter[site_id]"] || req.query.site_id;
+
+  if (siteId) {
+    items = items.filter(s => String(s.site_id) === String(siteId));
+  }
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    items = items.filter(s =>
+      (s.route_name && s.route_name.toLowerCase().includes(q)) ||
+      (s.site_name && s.site_name.toLowerCase().includes(q))
+    );
+  }
+
+  const sort = req.query.sort || "start_time";
+  const dir = req.query.dir || "asc";
+  items.sort((a, b) => {
+    const valA = a[sort] || "";
+    const valB = b[sort] || "";
+    return dir === "asc" ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+  });
+
+  if (req.query.export === "xlsx") {
+    const csvRows = items.map(s => `"${s.route_name}","${s.site_name}","${s.start_time} - ${s.end_time}",${s.interval_min},${s.grace_min},"${s.shift_name || "Any"}",${s.is_active ? "Active" : "Inactive"}`);
+    const csv = "Route,Site,Window (IST),Interval (Min),Grace (Min),Shift,Status\n" + csvRows.join("\n");
+    res.setHeader("Content-Disposition", 'attachment; filename="patrol-schedules.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.send(csv);
+  }
+
+  const page = Number(req.query.page) || 1;
+  const perPage = Number(req.query.per_page) || 50;
+  const start = (page - 1) * perPage;
+  const paginated = items.slice(start, start + perPage);
+
+  return res.json(listEnvelope(paginated, items.length, page, perPage));
 });
 
+app.post("/api/v1/patrol-schedules", (req, res) => {
+  const { route_id, shift_id, interval_min, start_time, end_time, grace_min, is_active } = req.body || {};
+  if (!route_id || !start_time || !end_time) {
+    return res.status(422).json(envelope(null, {}, [{ field: "route_id", message: "Route and time window required" }]));
+  }
+
+  const route = inMemory.patrol_routes.find(r => r.id === Number(route_id)) || inMemory.patrol_routes[0];
+  const shift = shift_id ? inMemory.shifts.find(s => s.id === Number(shift_id)) : null;
+
+  const newSchedule = {
+    id: inMemory.patrol_schedules.length + 1,
+    route_id: route.id,
+    route_name: route.name,
+    site_id: route.site_id,
+    site_name: route.site_name,
+    shift_id: shift ? shift.id : null,
+    shift_name: shift ? shift.name : null,
+    interval_min: Number(interval_min) || 120,
+    start_time: start_time || "22:00",
+    end_time: end_time || "06:00",
+    grace_min: Number(grace_min) || 15,
+    is_active: is_active !== undefined ? Number(is_active) : 1,
+  };
+
+  inMemory.patrol_schedules.push(newSchedule);
+  route.schedules_count = (route.schedules_count || 0) + 1;
+
+  return res.status(201).json(envelope(newSchedule));
+});
+
+app.patch("/api/v1/patrol-schedules/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.patrol_schedules.findIndex(s => s.id === id);
+  if (idx === -1) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Schedule not found" }]));
+  }
+
+  const updated = { ...inMemory.patrol_schedules[idx], ...req.body };
+  if (req.body.route_id) {
+    const route = inMemory.patrol_routes.find(r => r.id === Number(req.body.route_id));
+    if (route) {
+      updated.route_name = route.name;
+      updated.site_id = route.site_id;
+      updated.site_name = route.site_name;
+    }
+  }
+  if (req.body.shift_id) {
+    const shift = inMemory.shifts.find(s => s.id === Number(req.body.shift_id));
+    updated.shift_name = shift ? shift.name : null;
+  }
+
+  inMemory.patrol_schedules[idx] = updated;
+  return res.json(envelope(updated));
+});
+
+app.delete("/api/v1/patrol-schedules/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.patrol_schedules = inMemory.patrol_schedules.filter(s => s.id !== id);
+  return res.json(envelope({ message: "Schedule deleted" }));
+});
+
+// PATROL SCANS
 app.get("/api/v1/patrol/scans", (req, res) => {
-  return res.json(listEnvelope(inMemory.patrol_scans));
+  let items = [...inMemory.patrol_scans];
+  const siteId = req.query["filter[site_id]"] || req.query.site_id;
+  const isOffline = req.query["filter[captured_offline]"] || req.query.captured_offline;
+
+  if (siteId) {
+    items = items.filter(s => String(s.site_id) === String(siteId));
+  }
+  if (isOffline) {
+    items = items.filter(s => s.captured_offline === 1);
+  }
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    items = items.filter(s =>
+      (s.checkpoint_name && s.checkpoint_name.toLowerCase().includes(q)) ||
+      (s.site_name && s.site_name.toLowerCase().includes(q)) ||
+      (s.guard_name && s.guard_name.toLowerCase().includes(q))
+    );
+  }
+
+  const sort = req.query.sort || "scanned_at";
+  const dir = req.query.dir || "desc";
+  items.sort((a, b) => {
+    const valA = a[sort] || "";
+    const valB = b[sort] || "";
+    return dir === "asc" ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+  });
+
+  if (req.query.export === "xlsx") {
+    const csvRows = items.map(s => `"${s.scanned_at}","${s.checkpoint_name}","${s.site_name}","${s.guard_name}",${s.distance_m || 0},#${s.round_id || ""},${s.captured_offline ? "Offline" : "Online"}`);
+    const csv = "Scanned At,Checkpoint,Site,Guard,Distance (m),Round,Sync Status\n" + csvRows.join("\n");
+    res.setHeader("Content-Disposition", 'attachment; filename="patrol-scans.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.send(csv);
+  }
+
+  const page = Number(req.query.page) || 1;
+  const perPage = Number(req.query.per_page) || 25;
+  const start = (page - 1) * perPage;
+  const paginated = items.slice(start, start + perPage);
+
+  return res.json(listEnvelope(paginated, items.length, page, perPage));
 });
 
+// SITE VISITS
 app.get("/api/v1/site-visits", (req, res) => {
-  return res.json(listEnvelope(inMemory.site_visits));
+  let items = [...inMemory.site_visits];
+  const siteId = req.query["filter[site_id]"] || req.query.site_id;
+  const rating = req.query["filter[rating]"] || req.query.rating;
+
+  if (siteId) {
+    items = items.filter(v => String(v.site_id) === String(siteId));
+  }
+  if (rating) {
+    items = items.filter(v => String(v.rating) === String(rating));
+  }
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    items = items.filter(v =>
+      (v.site_name && v.site_name.toLowerCase().includes(q)) ||
+      (v.user_name && v.user_name.toLowerCase().includes(q)) ||
+      (v.remarks && v.remarks.toLowerCase().includes(q))
+    );
+  }
+
+  const sort = req.query.sort || "visited_at";
+  const dir = req.query.dir || "desc";
+  items.sort((a, b) => {
+    const valA = a[sort] || "";
+    const valB = b[sort] || "";
+    return dir === "asc" ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+  });
+
+  if (req.query.export === "xlsx") {
+    const csvRows = items.map(v => `"${v.visited_at}","${v.site_name}","${v.user_name}",${v.distance_m || 0},${v.inside_fence ? "Inside" : "Outside"},${v.guards_present || 0},${v.rating || 5},"${v.remarks || ""}"`);
+    const csv = "Visited At,Site,Supervisor,Distance (m),Fence Check,Guards Present,Rating,Remarks\n" + csvRows.join("\n");
+    res.setHeader("Content-Disposition", 'attachment; filename="site-visits.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.send(csv);
+  }
+
+  const page = Number(req.query.page) || 1;
+  const perPage = Number(req.query.per_page) || 25;
+  const start = (page - 1) * perPage;
+  const paginated = items.slice(start, start + perPage);
+
+  return res.json(listEnvelope(paginated, items.length, page, perPage));
+});
+
+// CLIENT PORTAL PATROL ENDPOINTS
+app.get("/api/v1/portal/patrol", (req, res) => {
+  const targetDate = req.query.date || new Date().toISOString().split("T")[0];
+  const rounds = inMemory.patrol_rounds.filter(r => r.due_at && r.due_at.startsWith(targetDate));
+
+  let siteList = inMemory.sites;
+  if (req.query.site_id) {
+    siteList = siteList.filter(s => String(s.id) === String(req.query.site_id));
+  }
+
+  const siteStats = siteList.map(s => {
+    const sr = rounds.filter(r => r.site_id === s.id);
+    const comp = sr.filter(r => r.status === "completed").length;
+    const part = sr.filter(r => r.status === "partial").length;
+    const miss = sr.filter(r => r.status === "missed").length;
+    const pend = sr.filter(r => r.status === "pending").length;
+    const tot = sr.length;
+    const pointsD = sr.reduce((sum, r) => sum + (r.points_done || 0), 0);
+    const pointsT = sr.reduce((sum, r) => sum + (r.points_total || 0), 0);
+    const pct = pointsT > 0 ? Number(((pointsD / pointsT) * 100).toFixed(1)) : 100.0;
+
+    return {
+      site_id: s.id,
+      site_name: s.name,
+      compliance_percent: pct,
+      completed: comp,
+      partial: part,
+      missed: miss,
+      pending: pend,
+      total: tot,
+    };
+  });
+
+  const allComp = siteStats.reduce((sum, s) => sum + s.completed, 0);
+  const allPart = siteStats.reduce((sum, s) => sum + s.partial, 0);
+  const allMiss = siteStats.reduce((sum, s) => sum + s.missed, 0);
+  const allTot = siteStats.reduce((sum, s) => sum + s.total, 0);
+  const avgPct = allTot > 0 ? Number((siteStats.reduce((sum, s) => sum + s.compliance_percent, 0) / siteStats.length).toFixed(1)) : 100.0;
+
+  return res.json({
+    data: siteStats,
+    meta: {
+      totals: {
+        compliance_percent: avgPct,
+        completed: allComp,
+        partial: allPart,
+        missed: allMiss,
+        total: allTot,
+      },
+    },
+    errors: [],
+  });
+});
+
+app.get("/api/v1/portal/patrol/rounds", (req, res) => {
+  return res.json(listEnvelope(inMemory.patrol_rounds.slice(0, 15)));
 });
 
 // ============================================================================
