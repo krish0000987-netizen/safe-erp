@@ -270,25 +270,192 @@ const inMemory = {
 
   // 13. Payroll
   payroll_runs: [
-    { id: 1, period: "2026-09", month_year: "September 2026", branch_id: 1, branch_name: "Mumbai Head Office", status: "paid", guards_count: 10, gross_paise: 28500000, deductions_paise: 3800000, net_paise: 24700000, computed_at: "2026-10-02T10:00:00Z" },
-    { id: 2, period: "2026-08", month_year: "August 2026", branch_id: 1, branch_name: "Mumbai Head Office", status: "paid", guards_count: 10, gross_paise: 28200000, deductions_paise: 3750000, net_paise: 24450000, computed_at: "2026-09-02T10:00:00Z" },
+    {
+      id: 1,
+      period: "2026-10",
+      month_year: "October 2026",
+      branch_id: 1,
+      branch_name: "Mumbai Head Office",
+      status: "computed",
+      from_date: "2026-10-01",
+      to_date: "2026-10-31",
+      guards_count: 10,
+      held: 0,
+      gross_paise: 30000000,
+      deductions_paise: 3820000,
+      net_paise: 26180000,
+      employer_pf_paise: 3900000,
+      employer_esi_paise: 975000,
+      totals: { employee_pf_paise: 3600000, employee_esi_paise: 220000 },
+      computed_at: "2026-10-27T10:00:00Z",
+      approved_at: null,
+      approved_by_name: null,
+    },
+    {
+      id: 2,
+      period: "2026-09",
+      month_year: "September 2026",
+      branch_id: 1,
+      branch_name: "Mumbai Head Office",
+      status: "paid",
+      from_date: "2026-09-01",
+      to_date: "2026-09-30",
+      guards_count: 10,
+      held: 0,
+      gross_paise: 28500000,
+      deductions_paise: 3800000,
+      net_paise: 24700000,
+      employer_pf_paise: 3705000,
+      employer_esi_paise: 926250,
+      totals: { employee_pf_paise: 3420000, employee_esi_paise: 213750 },
+      computed_at: "2026-10-02T10:00:00Z",
+      approved_at: "2026-10-03T11:00:00Z",
+      approved_by_name: "Rajesh Sharma",
+    },
   ],
 
   salary_structures: [
-    { id: 1, designation: "Senior Guard", basic_monthly_paise: 2200000, hra_paise: 440000, special_allowance_paise: 360000, pf_applicable: 1, esi_applicable: 1, pt_applicable: 1 },
-    { id: 2, designation: "Armed Guard", basic_monthly_paise: 2600000, hra_paise: 520000, special_allowance_paise: 680000, pf_applicable: 1, esi_applicable: 1, pt_applicable: 1 },
-    { id: 3, designation: "Head Guard", basic_monthly_paise: 2400000, hra_paise: 480000, special_allowance_paise: 420000, pf_applicable: 1, esi_applicable: 1, pt_applicable: 1 },
-    { id: 4, designation: "Security Guard", basic_monthly_paise: 1800000, hra_paise: 360000, special_allowance_paise: 240000, pf_applicable: 1, esi_applicable: 1, pt_applicable: 1 },
+    {
+      id: 1,
+      name: "Security Guard - Standard (₹30,000)",
+      guard_category_id: 1,
+      category_name: "Security Guard",
+      basic_paise: 2500000,
+      da_paise: 500000,
+      ot_rate_paise: 12500, // ₹125/hr
+      pf_applicable: true,
+      esi_applicable: true,
+      pt_applicable: true,
+      bonus_monthly: false,
+      effective_from: "2026-04-01",
+      is_active: true,
+      lines: [],
+      lines_count: 0,
+      guards_count: 12,
+    },
+    {
+      id: 2,
+      name: "Senior Guard (₹32,000)",
+      guard_category_id: 2,
+      category_name: "Senior Guard",
+      basic_paise: 2700000,
+      da_paise: 500000,
+      ot_rate_paise: 13333,
+      pf_applicable: true,
+      esi_applicable: true,
+      pt_applicable: true,
+      bonus_monthly: false,
+      effective_from: "2026-04-01",
+      is_active: true,
+      lines: [],
+      lines_count: 0,
+      guards_count: 4,
+    },
+    {
+      id: 3,
+      name: "Head Guard (₹33,000)",
+      guard_category_id: 3,
+      category_name: "Head Guard",
+      basic_paise: 2800000,
+      da_paise: 500000,
+      ot_rate_paise: 13750,
+      pf_applicable: true,
+      esi_applicable: true,
+      pt_applicable: true,
+      bonus_monthly: false,
+      effective_from: "2026-04-01",
+      is_active: true,
+      lines: [],
+      lines_count: 0,
+      guards_count: 2,
+    },
+    {
+      id: 4,
+      name: "Armed Guard (₹36,000)",
+      guard_category_id: 4,
+      category_name: "Armed Guard",
+      basic_paise: 3000000,
+      da_paise: 600000,
+      ot_rate_paise: 15000,
+      pf_applicable: true,
+      esi_applicable: true,
+      pt_applicable: true,
+      bonus_monthly: false,
+      effective_from: "2026-04-01",
+      is_active: true,
+      lines: [],
+      lines_count: 0,
+      guards_count: 3,
+    },
+    {
+      id: 5,
+      name: "Lady Guard (₹30,000)",
+      guard_category_id: 5,
+      category_name: "Lady Guard",
+      basic_paise: 2500000,
+      da_paise: 500000,
+      ot_rate_paise: 12500,
+      pf_applicable: true,
+      esi_applicable: true,
+      pt_applicable: true,
+      bonus_monthly: false,
+      effective_from: "2026-04-01",
+      is_active: true,
+      lines: [],
+      lines_count: 0,
+      guards_count: 2,
+    },
   ],
 
   advances: [
-    { id: 1, guard_id: 2, guard_name: "Mahesh Balasaheb Shinde", amount_paise: 500000, request_date: "2026-10-10", reason: "Medical expenses for family", status: "approved" },
-    { id: 2, guard_id: 4, guard_name: "Rahul Suresh Gaikwad", amount_paise: 300000, request_date: "2026-10-12", reason: "School fees", status: "approved" },
+    {
+      id: 1,
+      guard_id: 2,
+      guard_name: "Mahesh Balasaheb Shinde",
+      employee_code: "SGF-G-1002",
+      amount_paise: 500000,
+      installment_paise: 250000,
+      recovered_paise: 250000,
+      balance_paise: 250000,
+      request_date: "2026-10-10",
+      reason: "Medical expenses for family",
+      source: "office",
+      status: "approved",
+    },
+    {
+      id: 2,
+      guard_id: 4,
+      guard_name: "Rahul Suresh Gaikwad",
+      employee_code: "SGF-G-1004",
+      amount_paise: 300000,
+      installment_paise: 150000,
+      recovered_paise: 150000,
+      balance_paise: 150000,
+      request_date: "2026-10-12",
+      reason: "School fees",
+      source: "app",
+      status: "approved",
+    },
   ],
 
   fines: [
-    { id: 1, guard_id: 8, guard_name: "Deepak Namdeo Bhosle", amount_paise: 50000, issue_date: "2026-10-08", reason: "Late reporting on shift without prior intimation", status: "deducted" },
+    {
+      id: 1,
+      guard_id: 8,
+      guard_name: "Deepak Namdeo Bhosle",
+      employee_code: "SGF-G-1008",
+      amount_paise: 50000,
+      fine_date: "2026-10-08",
+      issue_date: "2026-10-08",
+      reason: "Late reporting on shift without prior intimation",
+      incident_id: 1,
+      incident_no: "INC-2026-001",
+      status: "recovered",
+      payslip_period: "2026-10",
+    },
   ],
+
+  payslips: [],
 
   // 14. Contracts
   contracts: [
@@ -440,6 +607,10 @@ async function saveStore() {
       leave_requests: inMemory.leave_requests,
       manpower_requests: inMemory.manpower_requests,
       payroll_runs: inMemory.payroll_runs,
+      salary_structures: inMemory.salary_structures,
+      advances: inMemory.advances,
+      fines: inMemory.fines,
+      payslips: inMemory.payslips,
     };
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(toSave, null, 2), "utf-8");
@@ -510,6 +681,10 @@ async function syncFromSupabase(force = false) {
         if (Array.isArray(v.leave_requests) && v.leave_requests.length > 0) inMemory.leave_requests = v.leave_requests;
         if (Array.isArray(v.manpower_requests) && v.manpower_requests.length > 0) inMemory.manpower_requests = v.manpower_requests;
         if (Array.isArray(v.payroll_runs) && v.payroll_runs.length > 0) inMemory.payroll_runs = v.payroll_runs;
+        if (Array.isArray(v.salary_structures) && v.salary_structures.length > 0 && v.salary_structures[0].basic_paise) inMemory.salary_structures = v.salary_structures;
+        if (Array.isArray(v.advances) && v.advances.length > 0) inMemory.advances = v.advances;
+        if (Array.isArray(v.fines) && v.fines.length > 0) inMemory.fines = v.fines;
+        if (Array.isArray(v.payslips) && v.payslips.length > 0) inMemory.payslips = v.payslips;
         recalculateRequiredGuards();
         lastSupabaseSync = Date.now();
         try {
@@ -545,6 +720,10 @@ function loadStore() {
       if (Array.isArray(data.leave_requests) && data.leave_requests.length) inMemory.leave_requests = data.leave_requests;
       if (Array.isArray(data.manpower_requests) && data.manpower_requests.length) inMemory.manpower_requests = data.manpower_requests;
       if (Array.isArray(data.payroll_runs) && data.payroll_runs.length) inMemory.payroll_runs = data.payroll_runs;
+      if (Array.isArray(data.salary_structures) && data.salary_structures.length && data.salary_structures[0].basic_paise) inMemory.salary_structures = data.salary_structures;
+      if (Array.isArray(data.advances) && data.advances.length) inMemory.advances = data.advances;
+      if (Array.isArray(data.fines) && data.fines.length) inMemory.fines = data.fines;
+      if (Array.isArray(data.payslips) && data.payslips.length) inMemory.payslips = data.payslips;
       recalculateRequiredGuards();
     }
   } catch (err) {
@@ -3322,7 +3501,7 @@ app.get("/api/v1/attendance/stats", (req, res) => {
 });
 
 app.post("/api/v1/attendance/manual", async (req, res) => {
-  const { guard_id, site_id, shift_id, duty_date, status, check_in_at, check_out_at, is_relief, replaces_guard_id, reason } = req.body;
+  const { guard_id, site_id, shift_id, duty_date, status, check_in_at, check_out_at, is_relief, replaces_guard_id, reason, ot_min } = req.body;
   const guard = inMemory.guards.find(g => g.id === Number(guard_id)) || inMemory.guards[0];
   const site = inMemory.sites.find(s => s.id === Number(site_id)) || inMemory.sites[0];
   const shift = inMemory.shifts.find(s => s.id === Number(shift_id)) || inMemory.shifts[0];
@@ -3332,12 +3511,14 @@ app.post("/api/v1/attendance/manual", async (req, res) => {
   const statusCode = statusCodeMap[status] || "P";
 
   let workedMin = 0;
-  let otMin = 0;
+  let otMinutes = req.body.ot_min !== undefined ? Number(req.body.ot_min) : 0;
   let lateMin = status === "late" ? 20 : 0;
   if (check_in_at && check_out_at) {
     const diffMs = new Date(check_out_at).getTime() - new Date(check_in_at).getTime();
     workedMin = Math.max(0, Math.floor(diffMs / 60000));
-    otMin = Math.max(0, workedMin - 480);
+    if (req.body.ot_min === undefined) {
+      otMinutes = Math.max(0, workedMin - 480);
+    }
   } else if (status === "present") {
     workedMin = 480;
   } else if (status === "late") {
@@ -3345,6 +3526,9 @@ app.post("/api/v1/attendance/manual", async (req, res) => {
     lateMin = 20;
   } else if (status === "half_day") {
     workedMin = 240;
+  } else if (status === "leave" || status === "absent") {
+    workedMin = 0;
+    otMinutes = 0;
   }
 
   let record = inMemory.attendance.find(a => a.guard_id === guard.id && a.duty_date === duty_date);
@@ -3360,7 +3544,7 @@ app.post("/api/v1/attendance/manual", async (req, res) => {
     record.check_out_at = check_out_at || record.check_out_at;
     record.worked_min = workedMin || record.worked_min || 480;
     record.late_min = lateMin;
-    record.ot_min = otMin;
+    record.ot_min = otMinutes;
     record.is_relief = !!is_relief;
     record.replaces_guard_id = replaces_guard_id ? Number(replaces_guard_id) : null;
     record.replaces_guard_name = replacedGuard ? replacedGuard.name : null;
@@ -3394,7 +3578,7 @@ app.post("/api/v1/attendance/manual", async (req, res) => {
       check_out_distance_m: check_out_at ? 10 : null,
       late_min: lateMin,
       worked_min: workedMin,
-      ot_min: otMin,
+      ot_min: otMinutes,
       source: "manual",
       captured_offline: false,
       is_relief: !!is_relief,
@@ -3410,6 +3594,11 @@ app.post("/api/v1/attendance/manual", async (req, res) => {
     inMemory.attendance.unshift(record);
   }
 
+  // Auto-sync affected payroll run for this month if computed or draft
+  if (typeof syncPayrollRunForDate === "function") {
+    syncPayrollRunForDate(duty_date);
+  }
+
   await saveStore();
   return res.json(envelope(record));
 });
@@ -3421,7 +3610,7 @@ app.post("/api/v1/attendance/:id/correct", async (req, res) => {
     return res.status(404).json(envelope(null, {}, [{ message: "Attendance record not found" }]));
   }
 
-  const { check_in_at, check_out_at, status, is_relief, replaces_guard_id, reason } = req.body;
+  const { check_in_at, check_out_at, status, is_relief, replaces_guard_id, reason, ot_min } = req.body;
   if (check_in_at) record.check_in_at = check_in_at;
   if (check_out_at) record.check_out_at = check_out_at;
   if (status) {
@@ -3429,6 +3618,14 @@ app.post("/api/v1/attendance/:id/correct", async (req, res) => {
     const statusCodeMap = { present: "P", late: "L", half_day: "HD", absent: "A", leave: "LV", weekly_off: "WO" };
     record.status_code = statusCodeMap[status] || "P";
     record.state = status;
+    if (status === "half_day") record.worked_min = 240;
+    if (status === "leave" || status === "absent") {
+      record.worked_min = 0;
+      record.ot_min = 0;
+    }
+  }
+  if (req.body.ot_min !== undefined) {
+    record.ot_min = Number(req.body.ot_min);
   }
   record.is_relief = !!is_relief;
   if (replaces_guard_id) {
@@ -3445,7 +3642,13 @@ app.post("/api/v1/attendance/:id/correct", async (req, res) => {
     const diffMs = new Date(record.check_out_at).getTime() - new Date(record.check_in_at).getTime();
     const diffMins = Math.max(0, Math.floor(diffMs / 60000));
     record.worked_min = diffMins;
-    record.ot_min = Math.max(0, diffMins - 480);
+    if (req.body.ot_min === undefined) {
+      record.ot_min = Math.max(0, diffMins - 480);
+    }
+  }
+
+  if (typeof syncPayrollRunForDate === "function" && record.duty_date) {
+    syncPayrollRunForDate(record.duty_date);
   }
 
   await saveStore();
@@ -5325,208 +5528,894 @@ app.get("/api/v1/quotations/:id/pdf", (req, res) => {
 });
 
 // ============================================================================
-// PAYROLL
+// PAYROLL CALCULATION ENGINE & HELPERS (Connected with Attendance)
+// ============================================================================
+
+function getGuardSalaryStructure(guard) {
+  if (guard.salary_structure_id) {
+    const s = (inMemory.salary_structures || []).find(str => str.id === Number(guard.salary_structure_id));
+    if (s) return s;
+  }
+  const catName = (guard.category_name || guard.designation || "").toLowerCase();
+  const s = (inMemory.salary_structures || []).find(str => 
+    (str.category_name && str.category_name.toLowerCase() === catName) ||
+    (str.name && str.name.toLowerCase().includes(catName))
+  );
+  if (s) return s;
+  return (inMemory.salary_structures || [])[0] || {
+    id: 1,
+    name: "Security Guard - Standard (₹30,000)",
+    basic_paise: 2500000,
+    da_paise: 500000,
+    ot_rate_paise: 12500,
+    pf_applicable: true,
+    esi_applicable: true,
+    pt_applicable: true,
+  };
+}
+
+function computePayslipForGuard(guard, period, runId) {
+  const structure = getGuardSalaryStructure(guard);
+  const monthlyBasicPaise = structure.basic_paise || 2500000;
+  const monthlyDaPaise = structure.da_paise || 500000;
+  const monthlySalaryPaise = monthlyBasicPaise + monthlyDaPaise; // ₹30,000 = 3,000,000 paise
+  const daysInPeriod = 30; // standard month divisor for Indian security operations
+  const dailyRatePaise = Math.round(monthlySalaryPaise / daysInPeriod); // ₹1,000 = 100,000 paise / day
+  const hourlyRatePaise = (structure.ot_rate_paise && structure.ot_rate_paise > 0)
+    ? structure.ot_rate_paise
+    : Math.round(dailyRatePaise / 8); // ₹125 = 12,500 paise / hr
+
+  // 1. Tally attendance records for this guard in the target month/period
+  const records = (inMemory.attendance || []).filter(a =>
+    Number(a.guard_id) === Number(guard.id) &&
+    typeof a.duty_date === "string" &&
+    a.duty_date.startsWith(period)
+  );
+
+  let presentDays = 0;
+  let lateDays = 0;
+  let halfDays = 0;
+  let leaveDays = 0;
+  let weeklyOffDays = 0;
+  let otMinutes = 0;
+
+  records.forEach(r => {
+    const st = (r.status || "").toLowerCase();
+    if (st === "present") presentDays += 1;
+    else if (st === "late") lateDays += 1;
+    else if (st === "half_day") halfDays += 1;
+    else if (st === "weekly_off") weeklyOffDays += 1;
+    else if (st === "leave" || st === "absent") leaveDays += 1;
+    else presentDays += 1;
+
+    otMinutes += Number(r.ot_min) || 0;
+  });
+
+  // Calculate payable days:
+  // Full month = 30 days.
+  // Each leave day deducts 1 full day (₹1,000).
+  // Each half day deducts 0.5 day (₹500).
+  let payableDays = 0;
+  let paidLeaveDays = 0;
+
+  if (records.length > 0) {
+    const totalLogged = presentDays + lateDays + halfDays + leaveDays + weeklyOffDays;
+    if (totalLogged >= daysInPeriod) {
+      paidLeaveDays = weeklyOffDays;
+      payableDays = (presentDays + lateDays + paidLeaveDays) + (halfDays * 0.5);
+    } else {
+      // Month in-progress or partially recorded:
+      // Base standard is 30 days; each leave subtracts 1 day, each half-day subtracts 0.5 day
+      payableDays = Math.max(0, daysInPeriod - leaveDays - (halfDays * 0.5));
+      paidLeaveDays = 4;
+      presentDays = Math.max(0, payableDays - paidLeaveDays - (halfDays * 0.5));
+    }
+  } else {
+    // If no records in period: if guard is active/deployed, default to standard full month
+    const isDeployed = (inMemory.deployments || []).some(d => d.guard_id === guard.id && d.status === "active");
+    if (isDeployed || guard.id <= 10) {
+      payableDays = 30;
+      presentDays = 26;
+      paidLeaveDays = 4;
+    } else {
+      payableDays = 0;
+      presentDays = 0;
+      paidLeaveDays = 0;
+    }
+  }
+
+  // 2. Earnings:
+  // Pro-rate Basic and DA according to payable_days / daysInPeriod
+  const earnedBasicPaise = Math.round(monthlyBasicPaise * (payableDays / daysInPeriod));
+  const earnedDaPaise = Math.round(monthlyDaPaise * (payableDays / daysInPeriod));
+  const earnedBasePaise = earnedBasicPaise + earnedDaPaise;
+
+  // Overtime pay: (otMinutes / 60) * hourlyRatePaise
+  const otHours = otMinutes / 60;
+  const otPayPaise = Math.round(otHours * hourlyRatePaise);
+
+  let grossPaise = earnedBasePaise + otPayPaise;
+
+  const lines = [
+    { id: 1, line_type: "earning", label: "Basic Wages", amount_paise: earnedBasicPaise },
+    { id: 2, line_type: "earning", label: "Dearness Allowance (DA)", amount_paise: earnedDaPaise },
+  ];
+
+  if (otMinutes > 0) {
+    lines.push({
+      id: 3,
+      line_type: "earning",
+      label: `Overtime (${otHours.toFixed(1)} hrs @ ₹${(hourlyRatePaise / 100).toFixed(0)}/hr)`,
+      amount_paise: otPayPaise,
+    });
+  }
+
+  // Additional allowances from salary structure lines (if any)
+  let lineId = 10;
+  (structure.lines || []).filter(l => l.line_type === "allowance").forEach(l => {
+    let amt = 0;
+    if (l.calc_type === "percent_of_basic") {
+      amt = Math.round(earnedBasicPaise * (l.percent_bp / 10000));
+    } else if (l.calc_type === "per_day") {
+      amt = Math.round((l.amount_paise || 0) * payableDays);
+    } else {
+      amt = Math.round((l.amount_paise || 0) * (payableDays / daysInPeriod));
+    }
+    if (amt > 0) {
+      grossPaise += amt;
+      const head = masterItems.find(m => m.id === Number(l.master_id));
+      lines.push({
+        id: lineId++,
+        line_type: "earning",
+        label: head?.name || "Special Allowance",
+        amount_paise: amt,
+      });
+    }
+  });
+
+  // 3. Deductions:
+  let deductionsPaise = 0;
+
+  // Provident Fund (PF): 12% of earned basic + DA (EPFO standard wage cap: ₹15,000 -> ₹1,800/mo = 180,000 paise)
+  let pfPaise = 0;
+  if (structure.pf_applicable && grossPaise > 0) {
+    const pfWage = Math.min(1500000, earnedBasePaise);
+    pfPaise = Math.round(pfWage * 0.12);
+    deductionsPaise += pfPaise;
+    lines.push({
+      id: lineId++,
+      line_type: "deduction",
+      label: "Provident Fund (PF 12%)",
+      amount_paise: pfPaise,
+    });
+  }
+
+  // Employee State Insurance (ESI): 0.75% of Gross Wages
+  let esiPaise = 0;
+  if (structure.esi_applicable && grossPaise > 0) {
+    esiPaise = Math.round(grossPaise * 0.0075);
+    deductionsPaise += esiPaise;
+    lines.push({
+      id: lineId++,
+      line_type: "deduction",
+      label: "Employee State Insurance (ESI 0.75%)",
+      amount_paise: esiPaise,
+    });
+  }
+
+  // Professional Tax (PT): standard Maharashtra PT = ₹200 (20,000 paise)
+  let ptPaise = 0;
+  if (structure.pt_applicable && grossPaise > 1000000) {
+    ptPaise = 20000;
+    deductionsPaise += ptPaise;
+    lines.push({
+      id: lineId++,
+      line_type: "deduction",
+      label: "Professional Tax (PT)",
+      amount_paise: ptPaise,
+    });
+  }
+
+  // Advances recovery
+  const guardAdvances = (inMemory.advances || []).filter(a =>
+    Number(a.guard_id) === Number(guard.id) &&
+    (a.status === "approved" || a.status === "paid") &&
+    (a.balance_paise === undefined || a.balance_paise > 0)
+  );
+  guardAdvances.forEach(adv => {
+    const bal = adv.balance_paise !== undefined ? adv.balance_paise : adv.amount_paise;
+    const inst = (adv.installment_paise && adv.installment_paise > 0) ? Math.min(adv.installment_paise, bal) : bal;
+    if (inst > 0) {
+      deductionsPaise += inst;
+      lines.push({
+        id: lineId++,
+        line_type: "deduction",
+        label: `Salary Advance Recovery (#${adv.id} - ${adv.reason || "Advance"})`,
+        amount_paise: inst,
+      });
+    }
+  });
+
+  // Fines recovery
+  const guardFines = (inMemory.fines || []).filter(f =>
+    Number(f.guard_id) === Number(guard.id) &&
+    f.status === "pending"
+  );
+  guardFines.forEach(fine => {
+    deductionsPaise += fine.amount_paise;
+    lines.push({
+      id: lineId++,
+      line_type: "deduction",
+      label: `Disciplinary Fine (${fine.reason || "Penalty"})`,
+      amount_paise: fine.amount_paise,
+    });
+  });
+
+  // Additional deduction lines from structure
+  (structure.lines || []).filter(l => l.line_type === "deduction").forEach(l => {
+    let amt = 0;
+    if (l.calc_type === "percent_of_basic") {
+      amt = Math.round(earnedBasicPaise * (l.percent_bp / 10000));
+    } else {
+      amt = l.amount_paise || 0;
+    }
+    if (amt > 0) {
+      deductionsPaise += amt;
+      const head = masterItems.find(m => m.id === Number(l.master_id));
+      lines.push({
+        id: lineId++,
+        line_type: "deduction",
+        label: head?.name || "Company Deduction",
+        amount_paise: amt,
+      });
+    }
+  });
+
+  // 4. Employer contributions
+  let employerPfPaise = 0;
+  if (structure.pf_applicable && grossPaise > 0) {
+    const pfWage = Math.min(1500000, earnedBasePaise);
+    employerPfPaise = Math.round(pfWage * 0.13);
+    lines.push({
+      id: lineId++,
+      line_type: "employer",
+      label: "Employer Provident Fund (PF 13%)",
+      amount_paise: employerPfPaise,
+    });
+  }
+
+  let employerEsiPaise = 0;
+  if (structure.esi_applicable && grossPaise > 0) {
+    employerEsiPaise = Math.round(grossPaise * 0.0325);
+    lines.push({
+      id: lineId++,
+      line_type: "employer",
+      label: "Employer ESI (3.25%)",
+      amount_paise: employerEsiPaise,
+    });
+  }
+
+  const netPaise = Math.max(0, grossPaise - deductionsPaise);
+
+  return {
+    payroll_run_id: runId,
+    guard_id: guard.id,
+    guard_name: guard.name,
+    employee_code: guard.employee_code || guard.code || `SGF-G-${1000 + guard.id}`,
+    category_name: guard.category_name || guard.designation || "Security Guard",
+    period: period,
+    payable_days: Number(payableDays.toFixed(1)),
+    days_in_period: daysInPeriod,
+    present_days: Math.round(presentDays),
+    paid_leave_days: paidLeaveDays,
+    half_days: halfDays,
+    leave_days: leaveDays,
+    ot_minutes: otMinutes,
+    gross_paise: grossPaise,
+    deductions_paise: deductionsPaise,
+    net_paise: netPaise,
+    employer_pf_paise: employerPfPaise,
+    employer_esi_paise: employerEsiPaise,
+    employee_pf_paise: pfPaise,
+    employee_esi_paise: esiPaise,
+    status: "computed",
+    bank_name: guard.bank_name || "State Bank of India",
+    bank_account_no: guard.bank_account_no || `3098127391${String(guard.id).padStart(2, "0")}`,
+    bank_ifsc: guard.bank_ifsc || "SBIN0001824",
+    lines: lines,
+  };
+}
+
+function computeRunPayslips(runId) {
+  const run = inMemory.payroll_runs.find(r => r.id === runId);
+  if (!run) return;
+
+  const previousHolds = new Set(
+    (inMemory.payslips || [])
+      .filter(p => p.payroll_run_id === runId && p.status === "held")
+      .map(p => p.guard_id)
+  );
+
+  inMemory.payslips = (inMemory.payslips || []).filter(p => p.payroll_run_id !== runId);
+
+  const guardsToPay = inMemory.guards.filter(g => g.status === "active" || g.is_active === 1 || g.id <= 10);
+  let nextSlipId = inMemory.payslips.length > 0 ? Math.max(...inMemory.payslips.map(s => s.id || 0)) + 1 : 1;
+
+  let totalGross = 0;
+  let totalDeductions = 0;
+  let totalNet = 0;
+  let totalEmployerPf = 0;
+  let totalEmployerEsi = 0;
+  let totalEmployeePf = 0;
+  let totalEmployeeEsi = 0;
+  let heldCount = 0;
+
+  guardsToPay.forEach(guard => {
+    const slip = computePayslipForGuard(guard, run.period, run.id);
+    slip.id = nextSlipId++;
+    if (previousHolds.has(guard.id)) {
+      slip.status = "held";
+      heldCount += 1;
+    } else if (run.status === "approved") {
+      slip.status = "approved";
+    } else if (run.status === "paid") {
+      slip.status = "paid";
+    } else {
+      slip.status = "computed";
+    }
+
+    inMemory.payslips.push(slip);
+
+    totalGross += slip.gross_paise;
+    totalDeductions += slip.deductions_paise;
+    totalNet += slip.net_paise;
+    totalEmployerPf += slip.employer_pf_paise;
+    totalEmployerEsi += slip.employer_esi_paise;
+    totalEmployeePf += slip.employee_pf_paise;
+    totalEmployeeEsi += slip.employee_esi_paise;
+  });
+
+  run.guards_count = guardsToPay.length;
+  run.held = heldCount;
+  run.gross_paise = totalGross;
+  run.deductions_paise = totalDeductions;
+  run.net_paise = totalNet;
+  run.employer_pf_paise = totalEmployerPf;
+  run.employer_esi_paise = totalEmployerEsi;
+  run.totals = {
+    employee_pf_paise: totalEmployeePf,
+    employee_esi_paise: totalEmployeeEsi,
+  };
+  if (run.status === "draft") run.status = "computed";
+  run.from_date = `${run.period}-01`;
+  run.to_date = `${run.period}-30`;
+  run.computed_at = new Date().toISOString();
+}
+
+function syncPayrollRunForDate(dutyDate) {
+  if (!dutyDate || typeof dutyDate !== "string") return;
+  const period = dutyDate.slice(0, 7);
+  const activeRun = (inMemory.payroll_runs || []).find(r => r.period === period && (r.status === "computed" || r.status === "draft"));
+  if (activeRun) {
+    computeRunPayslips(activeRun.id);
+  }
+}
+
+function initPayrollData() {
+  (inMemory.guards || []).forEach(g => {
+    if (!g.bank_name) g.bank_name = "State Bank of India";
+    if (!g.bank_account_no) g.bank_account_no = `3098127391${String(g.id).padStart(2, "0")}`;
+    if (!g.bank_ifsc) g.bank_ifsc = "SBIN0001824";
+    if (!g.employee_code) g.employee_code = g.code || `SGF-G-${1000 + g.id}`;
+  });
+
+  if (Array.isArray(inMemory.payroll_runs) && inMemory.payroll_runs.length > 0) {
+    inMemory.payroll_runs.forEach(r => {
+      computeRunPayslips(r.id);
+    });
+  }
+}
+
+initPayrollData();
+
+// ============================================================================
+// PAYROLL RUNS API
 // ============================================================================
 app.get("/api/v1/payroll-runs", (req, res) => {
   return res.json(listEnvelope(inMemory.payroll_runs));
 });
 
-app.post("/api/v1/payroll-runs", (req, res) => {
+app.post("/api/v1/payroll-runs", async (req, res) => {
+  const period = req.body.period || "2026-10";
+  const [year, month] = period.split("-");
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const monthYear = req.body.month_year || `${monthNames[Number(month) - 1] || "October"} ${year || "2026"}`;
+  const branchId = Number(req.body.branch_id) || 1;
+  const branch = inMemory.branches ? inMemory.branches.find(b => b.id === branchId) : null;
+  const doCompute = req.body.compute !== false;
+
+  const nextId = inMemory.payroll_runs.length > 0 ? Math.max(...inMemory.payroll_runs.map(r => r.id || 0)) + 1 : 1;
   const newRun = {
-    id: inMemory.payroll_runs.length + 1,
-    period: req.body.period || "2026-10",
-    month_year: req.body.month_year || "October 2026",
-    branch_id: Number(req.body.branch_id) || 1,
-    branch_name: "Mumbai Head Office",
-    status: "computed",
-    guards_count: inMemory.guards.length,
-    gross_paise: 28500000,
-    deductions_paise: 3800000,
-    net_paise: 24700000,
-    computed_at: new Date().toISOString(),
+    id: nextId,
+    period: period,
+    month_year: monthYear,
+    branch_id: branchId,
+    branch_name: branch ? branch.name : "Mumbai Head Office",
+    status: doCompute ? "computed" : "draft",
+    from_date: `${period}-01`,
+    to_date: `${period}-30`,
+    guards_count: 0,
+    held: 0,
+    gross_paise: 0,
+    deductions_paise: 0,
+    net_paise: 0,
+    employer_pf_paise: 0,
+    employer_esi_paise: 0,
+    totals: { employee_pf_paise: 0, employee_esi_paise: 0 },
+    computed_at: doCompute ? new Date().toISOString() : null,
+    approved_at: null,
+    approved_by_name: null,
   };
+
   inMemory.payroll_runs.unshift(newRun);
+
+  if (doCompute) {
+    computeRunPayslips(newRun.id);
+  }
+
+  await saveStore();
   return res.status(201).json(envelope(newRun));
 });
 
-app.delete("/api/v1/payroll-runs/:id", (req, res) => {
+app.get("/api/v1/payroll-runs/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const run = inMemory.payroll_runs.find(r => r.id === id);
+  if (!run) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Payroll run not found" }]));
+  }
+  return res.json(envelope(run));
+});
+
+app.post("/api/v1/payroll-runs/:id/compute", async (req, res) => {
+  const id = Number(req.params.id);
+  const run = inMemory.payroll_runs.find(r => r.id === id);
+  if (!run) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Payroll run not found" }]));
+  }
+  computeRunPayslips(id);
+  await saveStore();
+  return res.json(envelope(run));
+});
+
+app.post("/api/v1/payroll-runs/:id/approve", async (req, res) => {
+  const id = Number(req.params.id);
+  const run = inMemory.payroll_runs.find(r => r.id === id);
+  if (!run) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Payroll run not found" }]));
+  }
+  run.status = "approved";
+  run.approved_at = new Date().toISOString();
+  run.approved_by_name = "Rajesh Sharma";
+
+  (inMemory.payslips || []).forEach(p => {
+    if (p.payroll_run_id === id && p.status === "computed") {
+      p.status = "approved";
+    }
+  });
+
+  await saveStore();
+  return res.json(envelope(run));
+});
+
+app.post("/api/v1/payroll-runs/:id/mark-paid", async (req, res) => {
+  const id = Number(req.params.id);
+  const run = inMemory.payroll_runs.find(r => r.id === id);
+  if (!run) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Payroll run not found" }]));
+  }
+  run.status = "paid";
+
+  (inMemory.payslips || []).forEach(p => {
+    if (p.payroll_run_id === id && p.status !== "held") {
+      p.status = "paid";
+    }
+  });
+
+  await saveStore();
+  return res.json(envelope(run));
+});
+
+app.delete("/api/v1/payroll-runs/:id", async (req, res) => {
   const id = Number(req.params.id);
   inMemory.payroll_runs = inMemory.payroll_runs.filter(r => r.id !== id);
+  inMemory.payslips = (inMemory.payslips || []).filter(p => p.payroll_run_id !== id);
+  await saveStore();
   return res.json(envelope({ success: true }));
 });
 
-app.get("/api/v1/payroll-runs/:id", (req, res) => {
-  const run = inMemory.payroll_runs.find(r => r.id === Number(req.params.id)) || inMemory.payroll_runs[0];
-  const period = run?.period || "2026-10";
-
-  return res.json(envelope({
-    ...run,
-    slips: inMemory.guards.map(g => {
-      const guardRecords = inMemory.attendance.filter(a => a.guard_id === g.id && (a.duty_date || "").startsWith(period));
-      let dutyDays = 0;
-      if (guardRecords.length > 0) {
-        guardRecords.forEach(a => {
-          if (a.status === "present" || a.status === "late") dutyDays += 1;
-          else if (a.status === "half_day") dutyDays += 0.5;
-          else if (a.status === "weekly_off" || a.status === "leave") dutyDays += 1;
-        });
-      } else {
-        dutyDays = g.id <= 10 ? 26 : 0;
-      }
-
-      const gross = Math.round(dutyDays * 110000);
-      const deductions = Math.round(gross * 0.12);
-      const net = gross - deductions;
-
-      return {
-        guard_id: g.id,
-        guard_name: g.name,
-        designation: g.designation || "Security Guard",
-        duty_days: dutyDays,
-        gross_paise: gross,
-        deductions_paise: deductions,
-        net_paise: net,
-        status: "computed",
-      };
-    }),
-  }));
-});
-
+// Download reports for payroll run
 app.get("/api/v1/payroll-runs/:id/bank-sheet", (req, res) => {
-  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", 'attachment; filename="Bank_NEFT_Payroll_Sheet.xlsx"');
-  return res.send(Buffer.from("demo bank sheet excel"));
+  const id = Number(req.params.id);
+  const run = inMemory.payroll_runs.find(r => r.id === id);
+  const slips = (inMemory.payslips || []).filter(p => p.payroll_run_id === id);
+
+  let csv = "Employee Code,Beneficiary Name,Bank Name,Account Number,IFSC Code,Amount (INR),Remarks\n";
+  slips.forEach(s => {
+    const amt = (s.net_paise / 100).toFixed(2);
+    csv += `"${s.employee_code}","${s.guard_name}","${s.bank_name || "SBI"}","${s.bank_account_no || "30981273910"}","${s.bank_ifsc || "SBIN0001824"}",${amt},"Salary ${run?.period || "2026-10"}"\n`;
+  });
+
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", `attachment; filename="Bank_NEFT_Payroll_Sheet_${run?.period || "2026-10"}.csv"`);
+  return res.send(Buffer.from(csv));
 });
 
+app.get("/api/v1/payroll-runs/:id/pf-ecr", (req, res) => {
+  const id = Number(req.params.id);
+  const run = inMemory.payroll_runs.find(r => r.id === id);
+  const slips = (inMemory.payslips || []).filter(p => p.payroll_run_id === id);
+  const isTxt = req.query.format === "txt";
+
+  if (isTxt) {
+    let txt = "";
+    slips.forEach(s => {
+      const uan = `10098765${String(s.guard_id).padStart(4, "0")}`;
+      const gross = Math.round(s.gross_paise / 100);
+      const epfWages = Math.min(15000, gross);
+      const eePf = Math.round(epfWages * 0.12);
+      const erPf = Math.round(epfWages * 0.0833);
+      const erEps = eePf - erPf;
+      txt += `${uan}#~#${s.guard_name}#~#${gross}#~#${epfWages}#~#${epfWages}#~#${epfWages}#~#${eePf}#~#${erEps}#~#${erPf}#~#0#~#0\n`;
+    });
+    res.setHeader("Content-Type", "text/plain");
+    res.setHeader("Content-Disposition", `attachment; filename="ECR_${run?.period || "2026-10"}.txt"`);
+    return res.send(Buffer.from(txt));
+  }
+
+  let csv = "UAN,Member Name,Gross Wages,EPF Wages,EPS Wages,EDLI Wages,EE Share,ER Share,EPS Share,NCP Days,Refund\n";
+  slips.forEach(s => {
+    const uan = `10098765${String(s.guard_id).padStart(4, "0")}`;
+    const gross = Math.round(s.gross_paise / 100);
+    const epfWages = Math.min(15000, gross);
+    const eePf = Math.round(epfWages * 0.12);
+    const erPf = Math.round(epfWages * 0.0833);
+    const erEps = eePf - erPf;
+    csv += `"${uan}","${s.guard_name}",${gross},${epfWages},${epfWages},${epfWages},${eePf},${erEps},${erPf},0,0\n`;
+  });
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", `attachment; filename="PF_ECR_${run?.period || "2026-10"}.csv"`);
+  return res.send(Buffer.from(csv));
+});
+
+app.get("/api/v1/payroll-runs/:id/esi", (req, res) => {
+  const id = Number(req.params.id);
+  const run = inMemory.payroll_runs.find(r => r.id === id);
+  const slips = (inMemory.payslips || []).filter(p => p.payroll_run_id === id);
+
+  let csv = "IP Number,IP Name,No of Days,Total Monthly Wages,Reason Code,Last Working Day\n";
+  slips.forEach(s => {
+    const ip = `31098765${String(s.guard_id).padStart(2, "0")}`;
+    const gross = Math.round(s.gross_paise / 100);
+    csv += `"${ip}","${s.guard_name}",${s.payable_days},${gross},0,\n`;
+  });
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", `attachment; filename="ESI_${run?.period || "2026-10"}.csv"`);
+  return res.send(Buffer.from(csv));
+});
+
+app.get("/api/v1/payroll-runs/:id/register", (req, res) => {
+  const id = Number(req.params.id);
+  const run = inMemory.payroll_runs.find(r => r.id === id);
+  const slips = (inMemory.payslips || []).filter(p => p.payroll_run_id === id);
+
+  let csv = "Emp Code,Guard Name,Designation,Payable Days,OT Hours,Gross Pay (INR),Deductions (INR),Net Pay (INR)\n";
+  slips.forEach(s => {
+    const otH = (s.ot_minutes / 60).toFixed(1);
+    const gross = (s.gross_paise / 100).toFixed(2);
+    const ded = (s.deductions_paise / 100).toFixed(2);
+    const net = (s.net_paise / 100).toFixed(2);
+    csv += `"${s.employee_code}","${s.guard_name}","${s.category_name}",${s.payable_days},${otH},${gross},${ded},${net}\n`;
+  });
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", `attachment; filename="Payroll_Register_${run?.period || "2026-10"}.csv"`);
+  return res.send(Buffer.from(csv));
+});
+
+// ============================================================================
+// PAYSLIPS API
+// ============================================================================
 app.get("/api/v1/payslips", (req, res) => {
-  const slips = inMemory.guards.map((g, idx) => ({
-    id: idx + 1,
-    guard_id: g.id,
-    guard_name: g.name,
-    employee_code: g.code || `SGF-G-100${g.id}`,
-    period: "2026-09",
-    duty_days: 26,
-    gross_paise: 2850000,
-    deductions_paise: 380000,
-    net_paise: 2470000,
-    status: "paid",
-  }));
-  return res.json(listEnvelope(slips));
+  let list = inMemory.payslips || [];
+  const runId = getFilter(req, "payroll_run_id");
+  if (runId !== undefined) {
+    list = list.filter(p => String(p.payroll_run_id) === String(runId));
+  }
+  const status = getFilter(req, "status");
+  if (status) {
+    list = list.filter(p => p.status === status);
+  }
+  const search = req.query.search || getFilter(req, "search");
+  if (search) {
+    const s = search.toLowerCase();
+    list = list.filter(p =>
+      (p.guard_name && p.guard_name.toLowerCase().includes(s)) ||
+      (p.employee_code && p.employee_code.toLowerCase().includes(s))
+    );
+  }
+  return res.json(listEnvelope(list));
 });
 
+app.get("/api/v1/payslips/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const slip = (inMemory.payslips || []).find(p => p.id === id);
+  if (!slip) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Payslip not found" }]));
+  }
+  return res.json(envelope(slip));
+});
+
+app.post("/api/v1/payslips/:id/hold", async (req, res) => {
+  const id = Number(req.params.id);
+  const slip = (inMemory.payslips || []).find(p => p.id === id);
+  if (!slip) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Payslip not found" }]));
+  }
+  slip.status = "held";
+  const run = inMemory.payroll_runs.find(r => r.id === slip.payroll_run_id);
+  if (run) {
+    run.held = (inMemory.payslips || []).filter(p => p.payroll_run_id === run.id && p.status === "held").length;
+  }
+  await saveStore();
+  return res.json(envelope(slip));
+});
+
+app.post("/api/v1/payslips/:id/release", async (req, res) => {
+  const id = Number(req.params.id);
+  const slip = (inMemory.payslips || []).find(p => p.id === id);
+  if (!slip) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Payslip not found" }]));
+  }
+  const run = inMemory.payroll_runs.find(r => r.id === slip.payroll_run_id);
+  slip.status = run && run.status === "approved" ? "approved" : "computed";
+  if (run) {
+    run.held = (inMemory.payslips || []).filter(p => p.payroll_run_id === run.id && p.status === "held").length;
+  }
+  await saveStore();
+  return res.json(envelope(slip));
+});
+
+app.get("/api/v1/payslips/:id/pdf", (req, res) => {
+  const id = Number(req.params.id);
+  const slip = (inMemory.payslips || []).find(p => p.id === id);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="Payslip_${slip?.employee_code || id}.pdf"`);
+  return res.send(Buffer.from("%PDF-1.4 demo payslip pdf"));
+});
+
+// ============================================================================
+// SALARY STRUCTURES API
+// ============================================================================
 app.get("/api/v1/salary-structures", (req, res) => {
-  return res.json(listEnvelope(inMemory.salary_structures));
+  const list = (inMemory.salary_structures || []).map(s => ({
+    ...s,
+    lines_count: (s.lines || []).length,
+    guards_count: (inMemory.guards || []).filter(g =>
+      g.salary_structure_id === s.id || (!g.salary_structure_id && getGuardSalaryStructure(g).id === s.id)
+    ).length,
+  }));
+  return res.json(listEnvelope(list));
 });
 
-app.post("/api/v1/salary-structures", (req, res) => {
+app.post("/api/v1/salary-structures", async (req, res) => {
+  const nextId = inMemory.salary_structures.length > 0 ? Math.max(...inMemory.salary_structures.map(s => s.id || 0)) + 1 : 1;
+  const cat = req.body.guard_category_id ? masterItems.find(m => m.id === Number(req.body.guard_category_id)) : null;
+
   const newStructure = {
-    id: inMemory.salary_structures.length + 1,
-    designation: req.body.designation || "Security Guard",
-    basic_monthly_paise: Number(req.body.basic_monthly_paise) || 2000000,
-    hra_paise: Number(req.body.hra_paise) || 400000,
-    special_allowance_paise: Number(req.body.special_allowance_paise) || 200000,
-    pf_applicable: req.body.pf_applicable !== undefined ? req.body.pf_applicable : 1,
-    esi_applicable: req.body.esi_applicable !== undefined ? req.body.esi_applicable : 1,
-    pt_applicable: req.body.pt_applicable !== undefined ? req.body.pt_applicable : 1,
+    id: nextId,
+    name: req.body.name || "Custom Salary Structure",
+    guard_category_id: req.body.guard_category_id ? Number(req.body.guard_category_id) : null,
+    category_name: cat ? cat.name : null,
+    basic_paise: Number(req.body.basic_paise) || 2500000,
+    da_paise: Number(req.body.da_paise) || 500000,
+    ot_rate_paise: Number(req.body.ot_rate_paise) || 12500,
+    pf_applicable: !!req.body.pf_applicable,
+    esi_applicable: !!req.body.esi_applicable,
+    pt_applicable: !!req.body.pt_applicable,
+    bonus_monthly: !!req.body.bonus_monthly,
+    effective_from: req.body.effective_from || new Date().toISOString().split("T")[0],
+    is_active: req.body.is_active !== undefined ? !!req.body.is_active : true,
+    lines: Array.isArray(req.body.lines) ? req.body.lines : [],
   };
+
   inMemory.salary_structures.push(newStructure);
+  await saveStore();
   return res.status(201).json(envelope(newStructure));
 });
 
-app.put("/api/v1/salary-structures/:id", (req, res) => {
+app.put("/api/v1/salary-structures/:id", async (req, res) => {
   const id = Number(req.params.id);
   const idx = inMemory.salary_structures.findIndex(s => s.id === id);
   if (idx !== -1) {
-    inMemory.salary_structures[idx] = { ...inMemory.salary_structures[idx], ...req.body };
+    const cat = req.body.guard_category_id ? masterItems.find(m => m.id === Number(req.body.guard_category_id)) : null;
+    inMemory.salary_structures[idx] = {
+      ...inMemory.salary_structures[idx],
+      ...req.body,
+      category_name: cat ? cat.name : inMemory.salary_structures[idx].category_name,
+    };
+    await saveStore();
     return res.json(envelope(inMemory.salary_structures[idx]));
   }
   return res.status(404).json(envelope(null, {}, [{ message: "Salary structure not found" }]));
 });
 
-app.delete("/api/v1/salary-structures/:id", (req, res) => {
+app.delete("/api/v1/salary-structures/:id", async (req, res) => {
   const id = Number(req.params.id);
   inMemory.salary_structures = inMemory.salary_structures.filter(s => s.id !== id);
+  await saveStore();
   return res.json(envelope({ success: true }));
 });
 
-app.post("/api/v1/salary-structures/:id/assign", (req, res) => {
-  return res.json(envelope({ success: true, message: "Salary structure assigned successfully" }));
+app.post("/api/v1/salary-structures/:id/assign", async (req, res) => {
+  const id = Number(req.params.id);
+  const guardIds = Array.isArray(req.body.guard_ids) ? req.body.guard_ids.map(Number) : [];
+
+  (inMemory.guards || []).forEach(g => {
+    if (guardIds.includes(g.id)) {
+      g.salary_structure_id = id;
+    }
+  });
+
+  // Recompute open/computed runs with new assigned structures
+  (inMemory.payroll_runs || []).forEach(r => {
+    if (r.status === "computed" || r.status === "draft") {
+      computeRunPayslips(r.id);
+    }
+  });
+
+  await saveStore();
+  return res.json(envelope({ success: true, message: `Assigned structure to ${guardIds.length} guard(s)` }));
 });
 
+// Guard options for Payroll assignment and modals
+app.get(["/api/v1/payroll/guards", "/payroll/guards"], (req, res) => {
+  const search = (req.query.search || "").toLowerCase().trim();
+  const limit = Number(req.query.limit) || 300;
+  let list = (inMemory.guards || []).map(g => {
+    const struct = getGuardSalaryStructure(g);
+    return {
+      id: g.id,
+      name: g.name,
+      employee_code: g.employee_code || g.code || `SGF-G-${1000 + g.id}`,
+      mobile: g.mobile,
+      category_name: g.category_name || g.designation || "Security Guard",
+      effective_structure: g.salary_structure_id
+        ? { id: struct.id, name: struct.name, by: "assigned" }
+        : { id: struct.id, name: struct.name, by: "category" }
+    };
+  });
+
+  if (search) {
+    list = list.filter(g =>
+      (g.name && g.name.toLowerCase().includes(search)) ||
+      (g.employee_code && g.employee_code.toLowerCase().includes(search)) ||
+      (g.mobile && g.mobile.includes(search))
+    );
+  }
+
+  return res.json(envelope(list.slice(0, limit)));
+});
+
+// ============================================================================
+// ADVANCES API
+// ============================================================================
 app.get("/api/v1/advances", (req, res) => {
   return res.json(listEnvelope(inMemory.advances));
 });
 
-app.post("/api/v1/advances", (req, res) => {
+app.post("/api/v1/advances", async (req, res) => {
+  const guard = inMemory.guards.find(g => g.id === Number(req.body.guard_id)) || inMemory.guards[0];
+  const amt = Number(req.body.amount_paise) || 500000;
+  const inst = Number(req.body.installment_paise) || 0;
+  const nextId = inMemory.advances.length > 0 ? Math.max(...inMemory.advances.map(a => a.id || 0)) + 1 : 1;
+
   const newAdvance = {
-    id: inMemory.advances.length + 1,
-    guard_id: Number(req.body.guard_id) || 1,
-    guard_name: inMemory.guards.find(g => g.id === Number(req.body.guard_id))?.name || "Guard",
-    amount_paise: Number(req.body.amount_paise) || 500000,
+    id: nextId,
+    guard_id: guard.id,
+    guard_name: guard.name,
+    employee_code: guard.employee_code || guard.code || `SGF-G-${1000 + guard.id}`,
+    amount_paise: amt,
+    installment_paise: inst,
+    recovered_paise: 0,
+    balance_paise: amt,
     request_date: req.body.request_date || new Date().toISOString().split("T")[0],
     reason: req.body.reason || "Personal emergency",
+    source: "office",
     status: "approved",
   };
+
   inMemory.advances.unshift(newAdvance);
+
+  (inMemory.payroll_runs || []).forEach(r => {
+    if (r.status === "computed" || r.status === "draft") {
+      computeRunPayslips(r.id);
+    }
+  });
+
+  await saveStore();
   return res.status(201).json(envelope(newAdvance));
 });
 
-app.post("/api/v1/advances/:id/:action", (req, res) => {
+app.post("/api/v1/advances/:id/:action", async (req, res) => {
   const id = Number(req.params.id);
+  const action = req.params.action;
   const adv = inMemory.advances.find(a => a.id === id);
-  if (adv) adv.status = req.params.action;
-  return res.json(envelope({ id, status: req.params.action, message: "Advance status updated" }));
+  if (adv) {
+    adv.status = action;
+  }
+  await saveStore();
+  return res.json(envelope({ id, status: action, message: "Advance status updated" }));
 });
 
-app.delete("/api/v1/advances/:id", (req, res) => {
+app.delete("/api/v1/advances/:id", async (req, res) => {
   const id = Number(req.params.id);
   inMemory.advances = inMemory.advances.filter(a => a.id !== id);
+  await saveStore();
   return res.json(envelope({ success: true }));
 });
 
+// ============================================================================
+// FINES API
+// ============================================================================
 app.get("/api/v1/fines", (req, res) => {
   return res.json(listEnvelope(inMemory.fines));
 });
 
-app.post("/api/v1/fines", (req, res) => {
+app.post("/api/v1/fines", async (req, res) => {
+  const guard = inMemory.guards.find(g => g.id === Number(req.body.guard_id)) || inMemory.guards[0];
+  const amt = Number(req.body.amount_paise) || 50000;
+  const nextId = inMemory.fines.length > 0 ? Math.max(...inMemory.fines.map(f => f.id || 0)) + 1 : 1;
+  const incId = req.body.incident_id ? Number(req.body.incident_id) : null;
+
   const newFine = {
-    id: inMemory.fines.length + 1,
-    guard_id: Number(req.body.guard_id) || 1,
-    guard_name: inMemory.guards.find(g => g.id === Number(req.body.guard_id))?.name || "Guard",
-    amount_paise: Number(req.body.amount_paise) || 50000,
-    issue_date: req.body.issue_date || new Date().toISOString().split("T")[0],
+    id: nextId,
+    guard_id: guard.id,
+    guard_name: guard.name,
+    employee_code: guard.employee_code || guard.code || `SGF-G-${1000 + guard.id}`,
+    amount_paise: amt,
+    fine_date: req.body.fine_date || req.body.issue_date || new Date().toISOString().split("T")[0],
+    issue_date: req.body.fine_date || req.body.issue_date || new Date().toISOString().split("T")[0],
     reason: req.body.reason || "Disciplinary penalty",
+    incident_id: incId,
+    incident_no: incId ? `INC-2026-${String(incId).padStart(3, "0")}` : null,
     status: "pending",
+    payslip_period: null,
   };
+
   inMemory.fines.unshift(newFine);
+
+  (inMemory.payroll_runs || []).forEach(r => {
+    if (r.status === "computed" || r.status === "draft") {
+      computeRunPayslips(r.id);
+    }
+  });
+
+  await saveStore();
   return res.status(201).json(envelope(newFine));
 });
 
-app.post("/api/v1/fines/:id/waive", (req, res) => {
+app.post("/api/v1/fines/:id/waive", async (req, res) => {
   const id = Number(req.params.id);
   const fine = inMemory.fines.find(f => f.id === id);
   if (fine) fine.status = "waived";
+  await saveStore();
   return res.json(envelope({ id, status: "waived", message: "Fine waived successfully" }));
 });
 
-app.delete("/api/v1/fines/:id", (req, res) => {
+app.delete("/api/v1/fines/:id", async (req, res) => {
   const id = Number(req.params.id);
   inMemory.fines = inMemory.fines.filter(f => f.id !== id);
+  await saveStore();
   return res.json(envelope({ success: true }));
-});
-
-app.get("/api/v1/payslips/:id", (req, res) => {
-  return res.json(envelope({
-    guard_name: "Santosh Tukaram Jadhav",
-    period: "2026-09",
-    basic_paise: 2200000,
-    hra_paise: 440000,
-    allowance_paise: 210000,
-    pf_deduction_paise: 264000,
-    esi_deduction_paise: 61000,
-    pt_deduction_paise: 20000,
-    net_paise: 2505000,
-  }));
 });
 
 // ============================================================================
@@ -6019,6 +6908,8 @@ const masterTypes = [
   { type: "industry", group: "Growth", label: "Client Industries", fields: [] },
   { type: "incident_type", group: "Field", label: "Incident Categories", fields: [] },
   { type: "complaint_type", group: "Field", label: "Complaint Classifications", fields: [] },
+  { type: "allowance_head", group: "Money", label: "Allowance Heads", fields: [] },
+  { type: "deduction_head", group: "Money", label: "Deduction Heads", fields: [] },
 ];
 
 const masterItems = [
@@ -6066,6 +6957,12 @@ const masterItems = [
   { id: 42, type: "designation", code: "HEAD_GUARD", name: "Head Guard", sort_order: 2, is_active: 1 },
   { id: 43, type: "designation", code: "SUPERVISOR", name: "Field Supervisor", sort_order: 3, is_active: 1 },
   { id: 44, type: "designation", code: "ARMED_GUARD", name: "Armed Security Guard", sort_order: 4, is_active: 1 },
+  { id: 45, type: "allowance_head", code: "HRA", name: "House Rent Allowance (HRA)", sort_order: 1, is_active: 1 },
+  { id: 46, type: "allowance_head", code: "CONV", name: "Conveyance Allowance", sort_order: 2, is_active: 1 },
+  { id: 47, type: "allowance_head", code: "UNIFORM", name: "Uniform Maintenance Allowance", sort_order: 3, is_active: 1 },
+  { id: 48, type: "allowance_head", code: "SPL", name: "Special Duty Allowance", sort_order: 4, is_active: 1 },
+  { id: 49, type: "deduction_head", code: "UNIF_REC", name: "Uniform Kit Recovery", sort_order: 1, is_active: 1 },
+  { id: 50, type: "deduction_head", code: "ASSET_REC", name: "Mobile / Torch Asset Recovery", sort_order: 2, is_active: 1 },
 ];
 
 app.get("/api/v1/masters/types", (req, res) => {
