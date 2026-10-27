@@ -343,6 +343,25 @@ const inMemory = {
     { id: 1, webhook_id: 1, event: "attendance.punch", status_code: 200, status: "delivered", response: "OK", created_at: "2026-10-23T07:05:00Z" },
     { id: 2, webhook_id: 1, event: "incident.created", status_code: 200, status: "delivered", response: "OK", created_at: "2026-10-23T08:31:00Z" },
   ],
+
+  guard_kit: [
+    { id: 1, guard_id: 1, item_name: "Navy Blue Uniform Shirts (2 Sets)", quantity: 2, issued_date: "2026-09-01", returned_date: null, recoverable_cost_paise: 120000, recovered_paise: 120000, status: "issued" },
+    { id: 2, guard_id: 1, item_name: "SGF Beret & Metal Cap Badge", quantity: 1, issued_date: "2026-09-01", returned_date: null, recoverable_cost_paise: 35000, recovered_paise: 35000, status: "issued" },
+    { id: 3, guard_id: 1, item_name: "Safety Boots & Lanyard with Whistle", quantity: 1, issued_date: "2026-09-01", returned_date: null, recoverable_cost_paise: 80000, recovered_paise: 80000, status: "issued" },
+    { id: 4, guard_id: 2, item_name: "Standard Guard Uniform (2 Sets)", quantity: 2, issued_date: "2026-09-05", returned_date: null, recoverable_cost_paise: 120000, recovered_paise: 120000, status: "issued" },
+  ],
+
+  guard_documents: [
+    { id: 1, guard_id: 1, doc_type: "Aadhaar Card", file_name: "aadhaar_front_back.pdf", status: "verified", uploaded_at: "2026-09-01", verified_at: "2026-09-01" },
+    { id: 2, guard_id: 1, doc_type: "Police Verification Certificate", file_name: "pv_mumbai_police.pdf", status: "verified", uploaded_at: "2026-09-05", verified_at: "2026-09-05" },
+    { id: 3, guard_id: 1, doc_type: "Training Certificate", file_name: "psara_training_cert.pdf", status: "verified", uploaded_at: "2026-09-06", verified_at: "2026-09-06" },
+    { id: 4, guard_id: 2, doc_type: "Aadhaar Card", file_name: "aadhaar_mahesh.pdf", status: "verified", uploaded_at: "2026-09-05", verified_at: "2026-09-05" },
+  ],
+
+  portal_users: [
+    { id: 101, client_id: 1, name: "Arun Singhania", email: "arun.s@lodhagroup.com", mobile: "9820155667", role: "Client Admin", is_active: 1 },
+    { id: 102, client_id: 1, name: "Kunal Mehra", email: "kunal.m@lodhagroup.com", mobile: "9820155668", role: "Site Facility Lead", is_active: 1 },
+  ],
 };
 
 // ============================================================================
@@ -1113,6 +1132,10 @@ app.post("/api/v1/system/jobs/retry-failed", (req, res) => {
   res.json(envelope({ requeued: 0 }));
 });
 
+app.post("/api/v1/system/jobs/:id/retry", (req, res) => {
+  res.json(envelope({ success: true, message: "Job retried" }));
+});
+
 app.get("/api/v1/app/config", (req, res) => {
   res.json(envelope({
     company: {
@@ -1413,10 +1436,38 @@ app.delete("/api/v1/clients/:id", (req, res) => {
 });
 
 app.get("/api/v1/clients/:id/portal-users", (req, res) => {
-  return res.json(listEnvelope([
-    { id: 101, name: "Arun Singhania", email: "arun.s@lodhagroup.com", mobile: "9820155667", role: "Client Admin", is_active: 1 },
-    { id: 102, name: "Kunal Mehra", email: "kunal.m@lodhagroup.com", mobile: "9820155668", role: "Site Facility Lead", is_active: 1 },
-  ]));
+  const list = inMemory.portal_users.filter(u => u.client_id === Number(req.params.id));
+  return res.json(listEnvelope(list.length ? list : inMemory.portal_users));
+});
+
+app.post("/api/v1/clients/:id/portal-users", (req, res) => {
+  const newU = {
+    id: inMemory.portal_users.length + 101,
+    client_id: Number(req.params.id),
+    name: req.body.name,
+    email: req.body.email,
+    mobile: req.body.mobile,
+    role: req.body.role || "Site Facility Lead",
+    is_active: 1,
+  };
+  inMemory.portal_users.push(newU);
+  return res.status(201).json(envelope(newU));
+});
+
+app.put("/api/v1/clients/:id/portal-users/:userId", (req, res) => {
+  const userId = Number(req.params.userId);
+  const idx = inMemory.portal_users.findIndex(u => u.id === userId);
+  if (idx !== -1) {
+    inMemory.portal_users[idx] = { ...inMemory.portal_users[idx], ...req.body };
+    return res.json(envelope(inMemory.portal_users[idx]));
+  }
+  return res.json(envelope({ id: userId, client_id: Number(req.params.id), ...req.body }));
+});
+
+app.delete("/api/v1/clients/:id/portal-users/:userId", (req, res) => {
+  const userId = Number(req.params.userId);
+  inMemory.portal_users = inMemory.portal_users.filter(u => u.id !== userId);
+  return res.json(envelope({ success: true }));
 });
 
 app.get("/api/v1/clients/:id/sites", (req, res) => {
@@ -1487,6 +1538,22 @@ app.post("/api/v1/sites", (req, res) => {
   };
   inMemory.sites.unshift(newSite);
   return res.status(201).json(envelope(newSite));
+});
+
+app.put("/api/v1/sites/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.sites.findIndex(s => s.id === id);
+  if (idx !== -1) {
+    inMemory.sites[idx] = { ...inMemory.sites[idx], ...req.body };
+    return res.json(envelope(inMemory.sites[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Site not found" }]));
+});
+
+app.delete("/api/v1/sites/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.sites = inMemory.sites.filter(s => s.id !== id);
+  return res.json(envelope({ success: true }));
 });
 
 app.get("/api/v1/sites/:id", (req, res) => {
@@ -1791,19 +1858,86 @@ app.get("/api/v1/guards/:id/deployments", (req, res) => {
 });
 
 app.get("/api/v1/guards/:id/documents", (req, res) => {
-  return res.json(listEnvelope([
-    { id: 1, doc_type: "Aadhaar Card", file_name: "aadhaar_front_back.pdf", status: "verified", uploaded_at: "2026-09-01" },
-    { id: 2, doc_type: "Police Verification Certificate", file_name: "pv_mumbai_police.pdf", status: "verified", uploaded_at: "2026-09-05" },
-    { id: 3, doc_type: "Training Certificate", file_name: "psara_training_cert.pdf", status: "verified", uploaded_at: "2026-09-06" },
-  ]));
+  const docs = inMemory.guard_documents.filter(d => d.guard_id === Number(req.params.id));
+  return res.json(listEnvelope(docs.length ? docs : inMemory.guard_documents.slice(0, 3)));
+});
+
+app.post("/api/v1/guards/:id/documents", (req, res) => {
+  const newDoc = {
+    id: inMemory.guard_documents.length + 1,
+    guard_id: Number(req.params.id),
+    doc_type: req.body.doc_type || "Government ID",
+    file_name: req.body.file_name || "document.pdf",
+    file_url: req.body.file_url || null,
+    status: "verified",
+    uploaded_at: new Date().toISOString().split("T")[0],
+    verified_at: new Date().toISOString().split("T")[0],
+  };
+  inMemory.guard_documents.push(newDoc);
+  return res.status(201).json(envelope(newDoc));
+});
+
+app.post("/api/v1/guard-documents/:id/verify", (req, res) => {
+  const id = Number(req.params.id);
+  const doc = inMemory.guard_documents.find(d => d.id === id);
+  if (doc) {
+    doc.status = "verified";
+    doc.verified_at = new Date().toISOString().split("T")[0];
+    return res.json(envelope(doc));
+  }
+  return res.json(envelope({ id, status: "verified" }));
+});
+
+app.delete("/api/v1/guard-documents/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.guard_documents = inMemory.guard_documents.filter(d => d.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
+app.get("/api/v1/guard-kit", (req, res) => {
+  let list = inMemory.guard_kit;
+  if (req.query.guard_id) {
+    list = list.filter(k => k.guard_id === Number(req.query.guard_id));
+  }
+  return res.json(listEnvelope(list));
 });
 
 app.get("/api/v1/guards/:id/kit", (req, res) => {
-  return res.json(listEnvelope([
-    { id: 1, item_name: "Navy Blue Uniform Shirts (2 Sets)", issued_at: "2026-09-01", status: "issued" },
-    { id: 2, item_name: "SGF Beret & Metal Cap Badge", issued_at: "2026-09-01", status: "issued" },
-    { id: 3, item_name: "Safety Boots & Lanyard with Whistle", issued_at: "2026-09-01", status: "issued" },
-  ]));
+  const list = inMemory.guard_kit.filter(k => k.guard_id === Number(req.params.id));
+  return res.json(listEnvelope(list.length ? list : inMemory.guard_kit.slice(0, 3)));
+});
+
+app.post("/api/v1/guards/:id/kit", (req, res) => {
+  const newKit = {
+    id: inMemory.guard_kit.length + 1,
+    guard_id: Number(req.params.id),
+    item_name: req.body.item_name || "Uniform Set",
+    quantity: Number(req.body.quantity) || 1,
+    issued_date: req.body.issued_date || new Date().toISOString().split("T")[0],
+    returned_date: null,
+    recoverable_cost_paise: Number(req.body.recoverable_cost_paise) || 0,
+    recovered_paise: 0,
+    status: "issued",
+  };
+  inMemory.guard_kit.unshift(newKit);
+  return res.status(201).json(envelope(newKit));
+});
+
+app.post("/api/v1/guard-kit/:id/return", (req, res) => {
+  const id = Number(req.params.id);
+  const item = inMemory.guard_kit.find(k => k.id === id);
+  if (item) {
+    item.status = "returned";
+    item.returned_date = req.body.returned_date || new Date().toISOString().split("T")[0];
+    return res.json(envelope(item));
+  }
+  return res.json(envelope({ id, status: "returned", returned_date: new Date().toISOString().split("T")[0] }));
+});
+
+app.delete("/api/v1/guard-kit/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.guard_kit = inMemory.guard_kit.filter(k => k.id !== id);
+  return res.json(envelope({ success: true }));
 });
 
 app.get("/api/v1/deployments", (req, res) => {
@@ -1826,8 +1960,76 @@ app.post("/api/v1/deployments", (req, res) => {
   return res.status(201).json(envelope(newDep));
 });
 
+app.post("/api/v1/deployments/transfer", (req, res) => {
+  const { guard_id, to_site_id, to_shift_id } = req.body;
+  const dep = inMemory.deployments.find(d => d.guard_id === Number(guard_id) && d.status === "Active");
+  if (dep) {
+    if (to_site_id) {
+      dep.site_id = Number(to_site_id);
+      dep.site_name = inMemory.sites.find(s => s.id === Number(to_site_id))?.name || dep.site_name;
+    }
+    if (to_shift_id) {
+      dep.shift_id = Number(to_shift_id);
+      dep.shift_name = inMemory.shifts.find(s => s.id === Number(to_shift_id))?.name || dep.shift_name;
+    }
+  }
+  return res.json(envelope({ success: true, message: "Guard transferred successfully" }));
+});
+
+app.post("/api/v1/deployments/:id/end", (req, res) => {
+  const id = Number(req.params.id);
+  const dep = inMemory.deployments.find(d => d.id === id);
+  if (dep) {
+    dep.status = "Ended";
+    dep.end_date = new Date().toISOString().split("T")[0];
+  }
+  return res.json(envelope({ success: true, message: "Deployment ended" }));
+});
+
+app.put("/api/v1/deployments/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.deployments.findIndex(d => d.id === id);
+  if (idx !== -1) {
+    inMemory.deployments[idx] = { ...inMemory.deployments[idx], ...req.body };
+    return res.json(envelope(inMemory.deployments[idx]));
+  }
+  return res.json(envelope({ id, ...req.body }));
+});
+
 app.get("/api/v1/shifts", (req, res) => {
   return res.json(listEnvelope(inMemory.shifts));
+});
+
+app.post("/api/v1/shifts", (req, res) => {
+  const newShift = {
+    id: inMemory.shifts.length + 1,
+    name: req.body.name,
+    code: req.body.code ? req.body.code.toUpperCase() : `S${inMemory.shifts.length + 1}`,
+    start_time: req.body.start_time || "08:00:00",
+    end_time: req.body.end_time || "16:00:00",
+    duration_hours: 8.0,
+    shift_type: req.body.is_night ? "Night" : "Day",
+    is_active: req.body.is_active !== undefined ? req.body.is_active : 1,
+    site_id: req.body.site_id ? Number(req.body.site_id) : null,
+  };
+  inMemory.shifts.push(newShift);
+  return res.status(201).json(envelope(newShift));
+});
+
+app.put("/api/v1/shifts/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.shifts.findIndex(s => s.id === id);
+  if (idx !== -1) {
+    inMemory.shifts[idx] = { ...inMemory.shifts[idx], ...req.body };
+    return res.json(envelope(inMemory.shifts[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Shift not found" }]));
+});
+
+app.delete("/api/v1/shifts/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.shifts = inMemory.shifts.filter(s => s.id !== id);
+  return res.json(envelope({ success: true }));
 });
 
 // ============================================================================
@@ -2382,12 +2584,84 @@ app.post("/api/v1/rosters/generate", (req, res) => {
   return res.json(envelope({ message: "Roster generated for all deployed sites" }));
 });
 
+app.post("/api/v1/rosters", (req, res) => {
+  const newRoster = {
+    id: inMemory.rosters.length + 1,
+    guard_id: Number(req.body.guard_id) || 1,
+    guard_name: inMemory.guards.find(g => g.id === Number(req.body.guard_id))?.name || "Guard",
+    site_id: Number(req.body.site_id) || 1,
+    site_name: inMemory.sites.find(s => s.id === Number(req.body.site_id))?.name || "Site",
+    shift_name: req.body.shift_name || "Morning Shift (A)",
+    shift_code: req.body.shift_code || "A",
+    start_time: req.body.start_time || "07:00",
+    end_time: req.body.end_time || "15:00",
+    duty_date: req.body.duty_date || new Date().toISOString().split("T")[0],
+    attendance_status: "P",
+    is_relief: false,
+  };
+  inMemory.rosters.push(newRoster);
+  return res.status(201).json(envelope(newRoster));
+});
+
+app.delete("/api/v1/rosters/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.rosters = inMemory.rosters.filter(r => r.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
 app.post("/api/v1/rosters/:id/relief", (req, res) => {
   return res.json(envelope({ message: "Relief guard assigned successfully" }));
 });
 
 app.get("/api/v1/manpower-requests", (req, res) => {
   return res.json(listEnvelope(inMemory.manpower_requests));
+});
+
+app.post("/api/v1/manpower-requests", (req, res) => {
+  const newReq = {
+    id: inMemory.manpower_requests.length + 1,
+    client_id: Number(req.body.client_id) || 1,
+    client_name: inMemory.clients.find(c => c.id === Number(req.body.client_id))?.name || "Client",
+    site_name: req.body.site_name || "Lodha Bellissimo",
+    request_type: req.body.request_type || "Extra Guards",
+    guard_category: req.body.guard_category || "Senior Guard",
+    headcount: Number(req.body.headcount) || 2,
+    from_date: req.body.from_date || new Date().toISOString().split("T")[0],
+    to_date: req.body.to_date || new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+    reason: req.body.reason || "Additional requirement",
+    status: "Pending",
+  };
+  inMemory.manpower_requests.unshift(newReq);
+  return res.status(201).json(envelope(newReq));
+});
+
+app.post("/api/v1/manpower-requests/:id/:action", (req, res) => {
+  const id = Number(req.params.id);
+  const action = req.params.action; // approve, reject, cancel
+  const item = inMemory.manpower_requests.find(m => m.id === id);
+  if (item) {
+    item.status = action === "approve" ? "Approved" : action === "reject" ? "Rejected" : "Cancelled";
+    return res.json(envelope(item));
+  }
+  return res.json(envelope({ id, status: action }));
+});
+
+app.post("/api/v1/portal/manpower-requests", (req, res) => {
+  const newReq = {
+    id: inMemory.manpower_requests.length + 1,
+    client_id: Number(req.body.client_id) || 1,
+    client_name: inMemory.clients.find(c => c.id === Number(req.body.client_id))?.name || "Client",
+    site_name: req.body.site_name || "Site",
+    request_type: req.body.request_type || "Event Security",
+    guard_category: req.body.guard_category || "Security Guard",
+    headcount: Number(req.body.headcount) || 2,
+    from_date: req.body.from_date || new Date().toISOString().split("T")[0],
+    to_date: req.body.to_date || new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
+    reason: req.body.reason || "Portal Request",
+    status: "Pending",
+  };
+  inMemory.manpower_requests.unshift(newReq);
+  return res.status(201).json(envelope(newReq));
 });
 
 // ============================================================================
@@ -2609,7 +2883,7 @@ app.post("/api/v1/checkpoints", (req, res) => {
   return res.status(201).json(envelope(newCp));
 });
 
-app.patch("/api/v1/checkpoints/:id", (req, res) => {
+const updateCheckpointHandler = (req, res) => {
   const id = Number(req.params.id);
   const idx = inMemory.checkpoints.findIndex(c => c.id === id);
   if (idx === -1) {
@@ -2623,7 +2897,9 @@ app.patch("/api/v1/checkpoints/:id", (req, res) => {
   }
   inMemory.checkpoints[idx] = updated;
   return res.json(envelope(updated));
-});
+};
+app.patch("/api/v1/checkpoints/:id", updateCheckpointHandler);
+app.put("/api/v1/checkpoints/:id", updateCheckpointHandler);
 
 app.delete("/api/v1/checkpoints/:id", (req, res) => {
   const id = Number(req.params.id);
@@ -2716,7 +2992,7 @@ app.post("/api/v1/patrol-routes", (req, res) => {
   return res.status(201).json(envelope(newRoute));
 });
 
-app.patch("/api/v1/patrol-routes/:id", (req, res) => {
+const updatePatrolRouteHandler = (req, res) => {
   const id = Number(req.params.id);
   const idx = inMemory.patrol_routes.findIndex(r => r.id === id);
   if (idx === -1) {
@@ -2740,7 +3016,9 @@ app.patch("/api/v1/patrol-routes/:id", (req, res) => {
 
   inMemory.patrol_routes[idx] = updated;
   return res.json(envelope(updated));
-});
+};
+app.patch("/api/v1/patrol-routes/:id", updatePatrolRouteHandler);
+app.put("/api/v1/patrol-routes/:id", updatePatrolRouteHandler);
 
 app.delete("/api/v1/patrol-routes/:id", (req, res) => {
   const id = Number(req.params.id);
@@ -2819,7 +3097,7 @@ app.post("/api/v1/patrol-schedules", (req, res) => {
   return res.status(201).json(envelope(newSchedule));
 });
 
-app.patch("/api/v1/patrol-schedules/:id", (req, res) => {
+const updatePatrolScheduleHandler = (req, res) => {
   const id = Number(req.params.id);
   const idx = inMemory.patrol_schedules.findIndex(s => s.id === id);
   if (idx === -1) {
@@ -2842,7 +3120,9 @@ app.patch("/api/v1/patrol-schedules/:id", (req, res) => {
 
   inMemory.patrol_schedules[idx] = updated;
   return res.json(envelope(updated));
-});
+};
+app.patch("/api/v1/patrol-schedules/:id", updatePatrolScheduleHandler);
+app.put("/api/v1/patrol-schedules/:id", updatePatrolScheduleHandler);
 
 app.delete("/api/v1/patrol-schedules/:id", (req, res) => {
   const id = Number(req.params.id);
@@ -3032,6 +3312,41 @@ app.get("/api/v1/incidents/:id", (req, res) => {
   }));
 });
 
+app.patch("/api/v1/incidents/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.incidents.findIndex(i => i.id === id);
+  if (idx !== -1) {
+    inMemory.incidents[idx] = { ...inMemory.incidents[idx], ...req.body };
+    return res.json(envelope(inMemory.incidents[idx]));
+  }
+  return res.json(envelope({ id, ...req.body }));
+});
+
+app.put("/api/v1/incidents/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.incidents.findIndex(i => i.id === id);
+  if (idx !== -1) {
+    inMemory.incidents[idx] = { ...inMemory.incidents[idx], ...req.body };
+    return res.json(envelope(inMemory.incidents[idx]));
+  }
+  return res.json(envelope({ id, ...req.body }));
+});
+
+app.post("/api/v1/incidents/:id/updates", (req, res) => {
+  const newUpdate = {
+    id: Date.now(),
+    incident_id: Number(req.params.id),
+    update_text: req.body.update_text || req.body.text || "Status updated",
+    updated_at: new Date().toISOString(),
+    updated_by: "Control Room Supervisor",
+  };
+  return res.status(201).json(envelope(newUpdate));
+});
+
+app.post("/api/v1/incidents/:id/media", (req, res) => {
+  return res.status(201).json(envelope({ id: Date.now(), file_url: "https://example.com/media.jpg", message: "Media uploaded" }));
+});
+
 app.get("/api/v1/sos", (req, res) => {
   return res.json(listEnvelope([
     { id: 1, raised_by_name: "Santosh Tukaram Jadhav", site_name: "Lodha Bellissimo", client_name: "Lodha Group", status: "resolved", latitude: 18.9912, longitude: 72.8315, closure_note: "Commercial vehicle refused to stop at main gate; situation defused peacefully.", created_at: "2026-10-21T11:00:00Z", resolved_at: "2026-10-21T11:15:00Z" },
@@ -3040,6 +3355,10 @@ app.get("/api/v1/sos", (req, res) => {
 
 app.get("/api/v1/sos/active", (req, res) => {
   return res.json(envelope([]));
+});
+
+app.post("/api/v1/sos/:id/acknowledge", (req, res) => {
+  return res.json(envelope({ success: true, message: "SOS alert acknowledged" }));
 });
 
 app.post("/api/v1/sos/:id/resolve", (req, res) => {
@@ -3093,6 +3412,56 @@ app.get("/api/v1/invoices/:id", (req, res) => {
   }));
 });
 
+app.post("/api/v1/invoices/:id/lines", (req, res) => {
+  const newLine = {
+    id: Date.now(),
+    invoice_id: Number(req.params.id),
+    description: req.body.description || "Additional Guarding Services",
+    qty: Number(req.body.qty) || 1,
+    rate_paise: Number(req.body.rate_paise) || 100000,
+    amount_paise: (Number(req.body.qty) || 1) * (Number(req.body.rate_paise) || 100000),
+  };
+  return res.status(201).json(envelope(newLine));
+});
+
+app.put("/api/v1/invoices/:id/lines/:lineId", (req, res) => {
+  return res.json(envelope({ id: Number(req.params.lineId), ...req.body }));
+});
+
+app.delete("/api/v1/invoices/:id/lines/:lineId", (req, res) => {
+  return res.json(envelope({ success: true }));
+});
+
+app.post("/api/v1/invoices/:id/cancel", (req, res) => {
+  const inv = inMemory.invoices.find(i => i.id === Number(req.params.id));
+  if (inv) inv.status = "Cancelled";
+  return res.json(envelope({ success: true, message: "Invoice cancelled" }));
+});
+
+app.post("/api/v1/invoices/:id/issue", (req, res) => {
+  const inv = inMemory.invoices.find(i => i.id === Number(req.params.id));
+  if (inv) inv.status = "Issued";
+  return res.json(envelope({ success: true, message: "Invoice issued" }));
+});
+
+app.post("/api/v1/invoices/:id/regenerate", (req, res) => {
+  return res.json(envelope({ success: true, message: "Invoice regenerated" }));
+});
+
+app.post("/api/v1/invoices/:id/remind", (req, res) => {
+  return res.json(envelope({ success: true, message: "Payment reminder sent" }));
+});
+
+app.post("/api/v1/invoices/:id/payment-link", (req, res) => {
+  return res.json(envelope({ payment_url: `https://pay.safeguardforce.in/inv/${req.params.id}` }));
+});
+
+app.delete("/api/v1/invoices/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.invoices = inMemory.invoices.filter(i => i.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
 app.get("/api/v1/billing/contracts", (req, res) => {
   return res.json(envelope(inMemory.billing_contracts));
 });
@@ -3121,6 +3490,41 @@ app.get("/api/v1/credit-notes", (req, res) => {
   return res.json(listEnvelope(inMemory.credit_notes));
 });
 
+app.post("/api/v1/credit-notes", (req, res) => {
+  const newNote = {
+    id: inMemory.credit_notes.length + 1,
+    note_no: `${req.body.note_type === "debit" ? "DN" : "CN"}/2026/00${inMemory.credit_notes.length + 1}`,
+    note_type: req.body.note_type || "credit",
+    invoice_no: req.body.invoice_no || "INV/2026/09/001",
+    client_name: req.body.client_name || "Client",
+    amount_paise: Number(req.body.amount_paise) || 1000000,
+    reason: req.body.reason || "Billing adjustment",
+    status: "issued",
+    created_at: new Date().toISOString().split("T")[0],
+  };
+  inMemory.credit_notes.unshift(newNote);
+  return res.status(201).json(envelope(newNote));
+});
+
+app.post("/api/v1/credit-notes/:id/:action", (req, res) => {
+  const id = Number(req.params.id);
+  const note = inMemory.credit_notes.find(n => n.id === id);
+  if (note) note.status = req.params.action;
+  return res.json(envelope({ id, status: req.params.action, message: "Credit note status updated" }));
+});
+
+app.delete("/api/v1/credit-notes/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.credit_notes = inMemory.credit_notes.filter(n => n.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
+app.get("/api/v1/credit-notes/:id/pdf", (req, res) => {
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="credit-note-${req.params.id}.pdf"`);
+  return res.send(Buffer.from("%PDF-1.4 demo credit note pdf"));
+});
+
 app.get("/api/v1/exports/tally", (req, res) => {
   res.setHeader("Content-Type", "application/xml");
   res.setHeader("Content-Disposition", 'attachment; filename="Tally_SGF_ERP_Vouchers.xml"');
@@ -3147,6 +3551,27 @@ app.post("/api/v1/payments", (req, res) => {
   };
   inMemory.payments.unshift(newPay);
   return res.status(201).json(envelope(newPay));
+});
+
+app.post("/api/v1/payments/:id/allocate", (req, res) => {
+  const id = Number(req.params.id);
+  const pay = inMemory.payments.find(p => p.id === id);
+  if (pay) {
+    pay.status = "allocated";
+    pay.unallocated_paise = 0;
+  }
+  return res.json(envelope({ success: true, message: "Payment allocated successfully" }));
+});
+
+app.post("/api/v1/payments/:id/:action", (req, res) => {
+  const id = Number(req.params.id);
+  const pay = inMemory.payments.find(p => p.id === id);
+  if (pay) pay.status = req.params.action;
+  return res.json(envelope({ success: true, message: "Payment action performed" }));
+});
+
+app.post("/api/v1/portal/invoices/:id/pay", (req, res) => {
+  return res.json(envelope({ success: true, checkout_url: "https://pg.safeguardforce.in/checkout" }));
 });
 
 app.get("/api/v1/collections/ageing", (req, res) => {
@@ -3227,6 +3652,43 @@ app.get("/api/v1/job-openings", (req, res) => {
   return res.json(listEnvelope(inMemory.job_openings));
 });
 
+app.post("/api/v1/job-openings", (req, res) => {
+  const newOpening = {
+    id: inMemory.job_openings.length + 1,
+    title: req.body.title || "Security Officer",
+    guard_category: req.body.guard_category || "Security Guard",
+    location: req.body.location || "Mumbai",
+    vacancies: Number(req.body.vacancies) || 5,
+    min_age: Number(req.body.min_age) || 21,
+    max_age: Number(req.body.max_age) || 45,
+    min_height_cm: Number(req.body.min_height_cm) || 168,
+    qualification: req.body.qualification || "10th Pass",
+    salary_offer_paise: Number(req.body.salary_offer_paise) || 2400000,
+    salary: req.body.salary || "24,000",
+    status: req.body.status || "open",
+    opened_on: new Date().toISOString().split("T")[0],
+    description: req.body.description || "Security personnel recruitment opening.",
+  };
+  inMemory.job_openings.unshift(newOpening);
+  return res.status(201).json(envelope(newOpening));
+});
+
+app.put("/api/v1/job-openings/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.job_openings.findIndex(j => j.id === id);
+  if (idx !== -1) {
+    inMemory.job_openings[idx] = { ...inMemory.job_openings[idx], ...req.body };
+    return res.json(envelope(inMemory.job_openings[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Job opening not found" }]));
+});
+
+app.delete("/api/v1/job-openings/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.job_openings = inMemory.job_openings.filter(j => j.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
 app.get("/api/v1/candidates/lookups", (req, res) => {
   return res.json(envelope({
     openings: inMemory.job_openings,
@@ -3285,12 +3747,38 @@ app.get("/api/v1/candidates/:id", (req, res) => {
   }));
 });
 
+app.put("/api/v1/candidates/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.candidates.findIndex(c => c.id === id);
+  if (idx !== -1) {
+    inMemory.candidates[idx] = { ...inMemory.candidates[idx], ...req.body };
+    return res.json(envelope(inMemory.candidates[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Candidate not found" }]));
+});
+
 app.post("/api/v1/candidates/:id/stages", (req, res) => {
   return res.json(envelope({ message: "Candidate moved to next stage" }));
 });
 
+app.put("/api/v1/candidates/:id/stages/:stageId", (req, res) => {
+  return res.json(envelope({ message: "Candidate stage updated" }));
+});
+
 app.post("/api/v1/candidates/:id/convert", (req, res) => {
   return res.json(envelope({ message: "Candidate converted to active security guard" }));
+});
+
+app.post("/api/v1/candidates/:id/documents", (req, res) => {
+  return res.status(201).json(envelope({ id: Date.now(), file_name: req.body.file_name || "candidate_doc.pdf", status: "verified" }));
+});
+
+app.put("/api/v1/candidates/:id/documents/:docId", (req, res) => {
+  return res.json(envelope({ id: Number(req.params.docId), status: "verified" }));
+});
+
+app.delete("/api/v1/candidates/:id/documents/:docId", (req, res) => {
+  return res.json(envelope({ success: true }));
 });
 
 app.post("/api/v1/candidates", (req, res) => {
@@ -3386,11 +3874,56 @@ app.post("/api/v1/leads", (req, res) => {
 });
 
 app.post("/api/v1/leads/:id/stage", (req, res) => {
-  return res.json(envelope({ message: "Lead stage updated" }));
+  const lead = inMemory.leads.find(l => l.id === Number(req.params.id));
+  if (lead && req.body.stage) lead.stage = req.body.stage;
+  return res.json(envelope({ message: "Lead stage updated", lead }));
+});
+
+app.put("/api/v1/leads/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.leads.findIndex(l => l.id === id);
+  if (idx !== -1) {
+    inMemory.leads[idx] = { ...inMemory.leads[idx], ...req.body };
+    return res.json(envelope(inMemory.leads[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Lead not found" }]));
+});
+
+app.post("/api/v1/leads/:id/win", (req, res) => {
+  const lead = inMemory.leads.find(l => l.id === Number(req.params.id));
+  if (lead) lead.stage = "won";
+  return res.json(envelope({ message: "Lead marked won", lead }));
+});
+
+app.post("/api/v1/leads/:id/activities", (req, res) => {
+  const newActivity = {
+    id: Date.now(),
+    type: req.body.type || "note",
+    note: req.body.note || "Activity logged",
+    created_at: new Date().toISOString(),
+    user_name: "Rajesh Sharma",
+  };
+  return res.status(201).json(envelope(newActivity));
 });
 
 app.get("/api/v1/quotations", (req, res) => {
   return res.json(listEnvelope(inMemory.quotations));
+});
+
+app.post("/api/v1/quotations", (req, res) => {
+  const newQ = {
+    id: inMemory.quotations.length + 1,
+    quote_no: `QT-2026-00${inMemory.quotations.length + 1}`,
+    version: 1,
+    party_name: req.body.party_name || req.body.client_name || "New Client Quotation",
+    quote_date: req.body.quote_date || new Date().toISOString().split("T")[0],
+    headcount: Number(req.body.headcount) || 10,
+    total_paise: Number(req.body.total_paise) || 36993000,
+    status: "draft",
+    valid_until: req.body.valid_until || new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
+  };
+  inMemory.quotations.unshift(newQ);
+  return res.status(201).json(envelope(newQ));
 });
 
 app.get("/api/v1/quotations/defaults", (req, res) => {
@@ -3495,11 +4028,69 @@ app.get("/api/v1/quotations/:id", (req, res) => {
   }));
 });
 
+app.put("/api/v1/quotations/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.quotations.findIndex(q => q.id === id);
+  if (idx !== -1) {
+    inMemory.quotations[idx] = { ...inMemory.quotations[idx], ...req.body };
+    return res.json(envelope(inMemory.quotations[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Quotation not found" }]));
+});
+
+app.delete("/api/v1/quotations/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.quotations = inMemory.quotations.filter(q => q.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
+app.post("/api/v1/quotations/:id/status", (req, res) => {
+  const q = inMemory.quotations.find(item => item.id === Number(req.params.id));
+  if (q && req.body.status) q.status = req.body.status;
+  return res.json(envelope({ success: true, status: req.body.status }));
+});
+
+app.post("/api/v1/quotations/:id/revise", (req, res) => {
+  const q = inMemory.quotations.find(item => item.id === Number(req.params.id));
+  if (q) q.version = (q.version || 1) + 1;
+  return res.json(envelope({ success: true, version: (q?.version || 2) }));
+});
+
+app.get("/api/v1/quotations/:id/pdf", (req, res) => {
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="quotation-${req.params.id}.pdf"`);
+  return res.send(Buffer.from("%PDF-1.4 demo quotation pdf"));
+});
+
 // ============================================================================
 // PAYROLL
 // ============================================================================
 app.get("/api/v1/payroll-runs", (req, res) => {
   return res.json(listEnvelope(inMemory.payroll_runs));
+});
+
+app.post("/api/v1/payroll-runs", (req, res) => {
+  const newRun = {
+    id: inMemory.payroll_runs.length + 1,
+    period: req.body.period || "2026-10",
+    month_year: req.body.month_year || "October 2026",
+    branch_id: Number(req.body.branch_id) || 1,
+    branch_name: "Mumbai Head Office",
+    status: "computed",
+    guards_count: inMemory.guards.length,
+    gross_paise: 28500000,
+    deductions_paise: 3800000,
+    net_paise: 24700000,
+    computed_at: new Date().toISOString(),
+  };
+  inMemory.payroll_runs.unshift(newRun);
+  return res.status(201).json(envelope(newRun));
+});
+
+app.delete("/api/v1/payroll-runs/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.payroll_runs = inMemory.payroll_runs.filter(r => r.id !== id);
+  return res.json(envelope({ success: true }));
 });
 
 app.get("/api/v1/payroll-runs/:id", (req, res) => {
@@ -3525,16 +4116,121 @@ app.get("/api/v1/payroll-runs/:id/bank-sheet", (req, res) => {
   return res.send(Buffer.from("demo bank sheet excel"));
 });
 
+app.get("/api/v1/payslips", (req, res) => {
+  const slips = inMemory.guards.map((g, idx) => ({
+    id: idx + 1,
+    guard_id: g.id,
+    guard_name: g.name,
+    employee_code: g.code || `SGF-G-100${g.id}`,
+    period: "2026-09",
+    duty_days: 26,
+    gross_paise: 2850000,
+    deductions_paise: 380000,
+    net_paise: 2470000,
+    status: "paid",
+  }));
+  return res.json(listEnvelope(slips));
+});
+
 app.get("/api/v1/salary-structures", (req, res) => {
   return res.json(listEnvelope(inMemory.salary_structures));
+});
+
+app.post("/api/v1/salary-structures", (req, res) => {
+  const newStructure = {
+    id: inMemory.salary_structures.length + 1,
+    designation: req.body.designation || "Security Guard",
+    basic_monthly_paise: Number(req.body.basic_monthly_paise) || 2000000,
+    hra_paise: Number(req.body.hra_paise) || 400000,
+    special_allowance_paise: Number(req.body.special_allowance_paise) || 200000,
+    pf_applicable: req.body.pf_applicable !== undefined ? req.body.pf_applicable : 1,
+    esi_applicable: req.body.esi_applicable !== undefined ? req.body.esi_applicable : 1,
+    pt_applicable: req.body.pt_applicable !== undefined ? req.body.pt_applicable : 1,
+  };
+  inMemory.salary_structures.push(newStructure);
+  return res.status(201).json(envelope(newStructure));
+});
+
+app.put("/api/v1/salary-structures/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.salary_structures.findIndex(s => s.id === id);
+  if (idx !== -1) {
+    inMemory.salary_structures[idx] = { ...inMemory.salary_structures[idx], ...req.body };
+    return res.json(envelope(inMemory.salary_structures[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Salary structure not found" }]));
+});
+
+app.delete("/api/v1/salary-structures/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.salary_structures = inMemory.salary_structures.filter(s => s.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
+app.post("/api/v1/salary-structures/:id/assign", (req, res) => {
+  return res.json(envelope({ success: true, message: "Salary structure assigned successfully" }));
 });
 
 app.get("/api/v1/advances", (req, res) => {
   return res.json(listEnvelope(inMemory.advances));
 });
 
+app.post("/api/v1/advances", (req, res) => {
+  const newAdvance = {
+    id: inMemory.advances.length + 1,
+    guard_id: Number(req.body.guard_id) || 1,
+    guard_name: inMemory.guards.find(g => g.id === Number(req.body.guard_id))?.name || "Guard",
+    amount_paise: Number(req.body.amount_paise) || 500000,
+    request_date: req.body.request_date || new Date().toISOString().split("T")[0],
+    reason: req.body.reason || "Personal emergency",
+    status: "approved",
+  };
+  inMemory.advances.unshift(newAdvance);
+  return res.status(201).json(envelope(newAdvance));
+});
+
+app.post("/api/v1/advances/:id/:action", (req, res) => {
+  const id = Number(req.params.id);
+  const adv = inMemory.advances.find(a => a.id === id);
+  if (adv) adv.status = req.params.action;
+  return res.json(envelope({ id, status: req.params.action, message: "Advance status updated" }));
+});
+
+app.delete("/api/v1/advances/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.advances = inMemory.advances.filter(a => a.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
 app.get("/api/v1/fines", (req, res) => {
   return res.json(listEnvelope(inMemory.fines));
+});
+
+app.post("/api/v1/fines", (req, res) => {
+  const newFine = {
+    id: inMemory.fines.length + 1,
+    guard_id: Number(req.body.guard_id) || 1,
+    guard_name: inMemory.guards.find(g => g.id === Number(req.body.guard_id))?.name || "Guard",
+    amount_paise: Number(req.body.amount_paise) || 50000,
+    issue_date: req.body.issue_date || new Date().toISOString().split("T")[0],
+    reason: req.body.reason || "Disciplinary penalty",
+    status: "pending",
+  };
+  inMemory.fines.unshift(newFine);
+  return res.status(201).json(envelope(newFine));
+});
+
+app.post("/api/v1/fines/:id/waive", (req, res) => {
+  const id = Number(req.params.id);
+  const fine = inMemory.fines.find(f => f.id === id);
+  if (fine) fine.status = "waived";
+  return res.json(envelope({ id, status: "waived", message: "Fine waived successfully" }));
+});
+
+app.delete("/api/v1/fines/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.fines = inMemory.fines.filter(f => f.id !== id);
+  return res.json(envelope({ success: true }));
 });
 
 app.get("/api/v1/payslips/:id", (req, res) => {
@@ -3556,6 +4252,49 @@ app.get("/api/v1/payslips/:id", (req, res) => {
 // ============================================================================
 app.get("/api/v1/contracts", (req, res) => {
   return res.json(listEnvelope(inMemory.contracts));
+});
+
+app.post("/api/v1/contracts", (req, res) => {
+  const newC = {
+    id: inMemory.contracts.length + 1,
+    contract_number: `CNT/2026/00${inMemory.contracts.length + 1}`,
+    client_id: Number(req.body.client_id) || 1,
+    client_name: inMemory.clients.find(c => c.id === Number(req.body.client_id))?.name || "Client",
+    title: req.body.title || "Guarding Services Agreement",
+    start_date: req.body.start_date || new Date().toISOString().split("T")[0],
+    end_date: req.body.end_date || new Date(Date.now() + 365 * 86400000).toISOString().split("T")[0],
+    billing_cycle: req.body.billing_cycle || "monthly",
+    billing_basis: req.body.billing_basis || "per_guard_month",
+    monthly_billing_paise: Number(req.body.monthly_billing_paise) || 45000000,
+    gst_bp: Number(req.body.gst_bp) || 1800,
+    payment_terms_days: Number(req.body.payment_terms_days) || 15,
+    status: req.body.status || "active",
+    terms: req.body.terms || "Standard SLA terms.",
+  };
+  inMemory.contracts.unshift(newC);
+  return res.status(201).json(envelope(newC));
+});
+
+app.put("/api/v1/contracts/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.contracts.findIndex(c => c.id === id);
+  if (idx !== -1) {
+    inMemory.contracts[idx] = { ...inMemory.contracts[idx], ...req.body };
+    return res.json(envelope(inMemory.contracts[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Contract not found" }]));
+});
+
+app.delete("/api/v1/contracts/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.contracts = inMemory.contracts.filter(c => c.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
+app.post("/api/v1/contracts/:id/status", (req, res) => {
+  const c = inMemory.contracts.find(item => item.id === Number(req.params.id));
+  if (c && req.body.status) c.status = req.body.status;
+  return res.json(envelope({ success: true, status: req.body.status }));
 });
 
 app.get("/api/v1/contracts/:id", (req, res) => {
@@ -3582,11 +4321,107 @@ app.get("/api/v1/site-requirements", (req, res) => {
   return res.json(listEnvelope(inMemory.site_requirements));
 });
 
+app.post("/api/v1/site-requirements", (req, res) => {
+  const site = inMemory.sites.find(s => s.id === Number(req.body.site_id)) || inMemory.sites[0];
+  const newReq = {
+    id: inMemory.site_requirements.length + 1,
+    site_id: site.id,
+    site_name: site.name,
+    shift_name: req.body.shift_name || "Morning Shift (A)",
+    guard_category: req.body.guard_category || "Security Guard",
+    headcount: Number(req.body.headcount) || 4,
+    from_date: req.body.from_date || null,
+    to_date: req.body.to_date || null,
+    notes: req.body.notes || null,
+  };
+  inMemory.site_requirements.push(newReq);
+  return res.status(201).json(envelope(newReq));
+});
+
+app.put("/api/v1/site-requirements/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.site_requirements.findIndex(r => r.id === id);
+  if (idx !== -1) {
+    inMemory.site_requirements[idx] = { ...inMemory.site_requirements[idx], ...req.body };
+    return res.json(envelope(inMemory.site_requirements[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Requirement not found" }]));
+});
+
+app.delete("/api/v1/site-requirements/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.site_requirements = inMemory.site_requirements.filter(r => r.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
 // ============================================================================
 // COMPLAINTS
 // ============================================================================
 app.get("/api/v1/complaints", (req, res) => {
   return res.json(listEnvelope(inMemory.complaints));
+});
+
+app.post("/api/v1/complaints", (req, res) => {
+  const client = inMemory.clients.find(c => c.id === Number(req.body.client_id)) || inMemory.clients[0];
+  const site = inMemory.sites.find(s => s.id === Number(req.body.site_id)) || inMemory.sites[0];
+  const newComp = {
+    id: inMemory.complaints.length + 1,
+    complaint_no: `CMP-2026-00${inMemory.complaints.length + 1}`,
+    subject: req.body.subject || "Security Service Feedback",
+    client_id: client.id,
+    client_name: client.name,
+    site_name: site.name,
+    complaint_type_name: req.body.complaint_type_name || "Operations & Turnout",
+    priority: req.body.priority || "medium",
+    status: "in_progress",
+    source: req.body.source || "office",
+    raised_by_name: req.body.raised_by_name || "Admin",
+    assigned_to_name: "Rajesh Sharma",
+    client_rating: null,
+    created_at: new Date().toISOString(),
+    description: req.body.description || "Details logged by supervisor.",
+  };
+  inMemory.complaints.unshift(newComp);
+  return res.status(201).json(envelope(newComp));
+});
+
+app.put("/api/v1/complaints/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.complaints.findIndex(c => c.id === id);
+  if (idx !== -1) {
+    inMemory.complaints[idx] = { ...inMemory.complaints[idx], ...req.body };
+    return res.json(envelope(inMemory.complaints[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Complaint not found" }]));
+});
+
+app.post("/api/v1/portal/complaints", (req, res) => {
+  const newComp = {
+    id: inMemory.complaints.length + 1,
+    complaint_no: `CMP-2026-00${inMemory.complaints.length + 1}`,
+    subject: req.body.subject || "Portal Feedback",
+    client_id: 1,
+    client_name: "Lodha Group",
+    site_name: req.body.site_name || "Lodha Bellissimo",
+    complaint_type_name: req.body.complaint_type_name || "Access Control",
+    priority: req.body.priority || "medium",
+    status: "open",
+    source: "client_portal",
+    raised_by_name: "Client Portal User",
+    assigned_to_name: "Rajesh Sharma",
+    client_rating: null,
+    created_at: new Date().toISOString(),
+    description: req.body.description || "Portal ticket raised",
+  };
+  inMemory.complaints.unshift(newComp);
+  return res.status(201).json(envelope(newComp));
+});
+
+app.post("/api/v1/portal/complaints/:id/rate", (req, res) => {
+  const id = Number(req.params.id);
+  const comp = inMemory.complaints.find(c => c.id === id);
+  if (comp) comp.client_rating = Number(req.body.rating) || 5;
+  return res.json(envelope({ success: true, rating: req.body.rating }));
 });
 
 app.get("/api/v1/complaints/assignees", (req, res) => {
@@ -3775,8 +4610,73 @@ app.get("/api/v1/masters", (req, res) => {
   return res.json(listEnvelope(items));
 });
 
+app.post("/api/v1/masters", (req, res) => {
+  const newItem = {
+    id: masterItems.length ? Math.max(...masterItems.map(m => m.id)) + 1 : 1,
+    type: req.body.type || "guard_category",
+    code: req.body.code ? req.body.code.toUpperCase() : "CODE",
+    name: req.body.name,
+    name_hi: req.body.name_hi || null,
+    sort_order: Number(req.body.sort_order) || masterItems.length + 1,
+    is_active: req.body.is_active !== undefined ? Number(req.body.is_active) : 1,
+    meta: req.body.meta || {},
+  };
+  masterItems.push(newItem);
+  return res.status(201).json(envelope(newItem));
+});
+
+app.put("/api/v1/masters/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = masterItems.findIndex(m => m.id === id);
+  if (idx !== -1) {
+    masterItems[idx] = { ...masterItems[idx], ...req.body };
+    return res.json(envelope(masterItems[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Master item not found" }]));
+});
+
+app.delete("/api/v1/masters/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = masterItems.findIndex(m => m.id === id);
+  if (idx !== -1) masterItems.splice(idx, 1);
+  return res.json(envelope({ success: true }));
+});
+
 app.get("/api/v1/custom-fields", (req, res) => {
   return res.json(listEnvelope(inMemory.custom_fields));
+});
+
+app.post("/api/v1/custom-fields", (req, res) => {
+  const newField = {
+    id: inMemory.custom_fields.length ? Math.max(...inMemory.custom_fields.map(c => c.id)) + 1 : 1,
+    entity: req.body.entity || "guard",
+    field_key: req.body.field_key || `field_${Date.now()}`,
+    label: req.body.label,
+    field_type: req.body.field_type || "text",
+    options: req.body.options || null,
+    is_required: !!req.body.is_required,
+    show_in_list: !!req.body.show_in_list,
+    sort_order: Number(req.body.sort_order) || inMemory.custom_fields.length + 1,
+    is_active: req.body.is_active !== undefined ? !!req.body.is_active : true,
+  };
+  inMemory.custom_fields.push(newField);
+  return res.status(201).json(envelope(newField));
+});
+
+app.put("/api/v1/custom-fields/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.custom_fields.findIndex(c => c.id === id);
+  if (idx !== -1) {
+    inMemory.custom_fields[idx] = { ...inMemory.custom_fields[idx], ...req.body };
+    return res.json(envelope(inMemory.custom_fields[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Custom field not found" }]));
+});
+
+app.delete("/api/v1/custom-fields/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.custom_fields = inMemory.custom_fields.filter(c => c.id !== id);
+  return res.json(envelope({ success: true }));
 });
 
 // ============================================================================
@@ -3806,8 +4706,64 @@ app.get("/api/v1/data-export", (req, res) => {
   return res.json(listEnvelope(inMemory.data_export_jobs));
 });
 
+app.post("/api/v1/data-export", (req, res) => {
+  const newJob = {
+    id: inMemory.data_export_jobs.length + 1,
+    entity: req.body.entity || "guards",
+    format: req.body.format || "xlsx",
+    status: "done",
+    created_at: new Date().toISOString(),
+    finished_at: new Date().toISOString(),
+    attempts: 1,
+    url: `/exports/${req.body.entity || "guards"}.xlsx`,
+  };
+  inMemory.data_export_jobs.unshift(newJob);
+  return res.status(201).json(envelope(newJob));
+});
+
+app.delete("/api/v1/data-export/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.data_export_jobs = inMemory.data_export_jobs.filter(j => j.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
 app.get("/api/v1/api-keys", (req, res) => {
   return res.json(listEnvelope(inMemory.api_keys));
+});
+
+app.post("/api/v1/api-keys", (req, res) => {
+  const newKey = {
+    id: inMemory.api_keys.length + 1,
+    name: req.body.name || "API Access Token",
+    key: `sgf_live_${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`,
+    created_at: new Date().toISOString(),
+    last_used_at: null,
+    modules: req.body.modules || ["attendance", "guards"],
+  };
+  inMemory.api_keys.unshift(newKey);
+  return res.status(201).json(envelope(newKey));
+});
+
+app.put("/api/v1/api-keys/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.api_keys.findIndex(k => k.id === id);
+  if (idx !== -1) {
+    inMemory.api_keys[idx] = { ...inMemory.api_keys[idx], ...req.body };
+    return res.json(envelope(inMemory.api_keys[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "API key not found" }]));
+});
+
+app.delete("/api/v1/api-keys/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.api_keys = inMemory.api_keys.filter(k => k.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
+app.post("/api/v1/api-keys/:id/revoke", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.api_keys = inMemory.api_keys.filter(k => k.id !== id);
+  return res.json(envelope({ success: true, message: "API key revoked" }));
 });
 
 app.get("/api/v1/api-keys/modules", (req, res) => {
@@ -3816,6 +4772,57 @@ app.get("/api/v1/api-keys/modules", (req, res) => {
 
 app.get("/api/v1/webhooks", (req, res) => {
   return res.json(listEnvelope(inMemory.webhooks));
+});
+
+app.post("/api/v1/webhooks", (req, res) => {
+  const newHook = {
+    id: inMemory.webhooks.length + 1,
+    name: req.body.name || "Integration Webhook",
+    url: req.body.url || "https://example.com/webhook",
+    events: req.body.events || ["attendance.punch"],
+    is_active: req.body.is_active !== undefined ? !!req.body.is_active : true,
+    created_at: new Date().toISOString().split("T")[0],
+  };
+  inMemory.webhooks.unshift(newHook);
+  return res.status(201).json(envelope(newHook));
+});
+
+app.put("/api/v1/webhooks/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.webhooks.findIndex(w => w.id === id);
+  if (idx !== -1) {
+    inMemory.webhooks[idx] = { ...inMemory.webhooks[idx], ...req.body };
+    return res.json(envelope(inMemory.webhooks[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Webhook not found" }]));
+});
+
+app.delete("/api/v1/webhooks/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.webhooks = inMemory.webhooks.filter(w => w.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
+app.post("/api/v1/webhooks/:id/rotate-secret", (req, res) => {
+  return res.json(envelope({ secret: `whsec_${Math.random().toString(36).slice(2)}` }));
+});
+
+app.post("/api/v1/webhooks/:id/test", (req, res) => {
+  const delivery = {
+    id: inMemory.webhook_deliveries.length + 1,
+    webhook_id: Number(req.params.id),
+    event: "webhook.test",
+    status_code: 200,
+    status: "delivered",
+    response: "OK",
+    created_at: new Date().toISOString(),
+  };
+  inMemory.webhook_deliveries.unshift(delivery);
+  return res.json(envelope({ success: true, delivery }));
+});
+
+app.post("/api/v1/webhook-deliveries/:id/retry", (req, res) => {
+  return res.json(envelope({ success: true, status_code: 200, response: "OK" }));
 });
 
 app.get("/api/v1/webhooks/events", (req, res) => {
@@ -3830,12 +4837,129 @@ app.get("/api/v1/branches", (req, res) => {
   return res.json(listEnvelope(inMemory.branches));
 });
 
+app.post("/api/v1/branches", (req, res) => {
+  const newBranch = {
+    id: inMemory.branches.length + 1,
+    name: req.body.name,
+    code: req.body.code ? req.body.code.toUpperCase() : `BR-${inMemory.branches.length + 1}`,
+    address: req.body.address || "",
+    city: req.body.city || "Mumbai",
+    state: req.body.state || "Maharashtra",
+    state_code: req.body.state_code || "27",
+    phone: req.body.phone || "+91 22 2650 1100",
+    email: req.body.email || "branch@safeguardforce.in",
+    gstin: req.body.gstin ? req.body.gstin.toUpperCase() : "27AABCS1234F1Z1",
+    users_count: 0,
+    is_active: req.body.is_active !== undefined ? req.body.is_active : 1,
+    created_at: new Date().toISOString(),
+  };
+  inMemory.branches.push(newBranch);
+  return res.status(201).json(envelope(newBranch));
+});
+
+app.put("/api/v1/branches/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.branches.findIndex(b => b.id === id);
+  if (idx !== -1) {
+    inMemory.branches[idx] = { ...inMemory.branches[idx], ...req.body };
+    return res.json(envelope(inMemory.branches[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Branch not found" }]));
+});
+
+app.delete("/api/v1/branches/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.branches = inMemory.branches.filter(b => b.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
 app.get("/api/v1/users", (req, res) => {
   return res.json(listEnvelope(inMemory.users));
 });
 
+app.post("/api/v1/users", (req, res) => {
+  const role = inMemory.roles.find(r => r.id === Number(req.body.role_id)) || inMemory.roles[0];
+  const branch = inMemory.branches.find(b => b.id === Number(req.body.branch_id)) || inMemory.branches[0];
+  const newUser = {
+    id: inMemory.users.length + 1,
+    name: req.body.name,
+    email: req.body.email || `user${inMemory.users.length + 1}@safeguardforce.in`,
+    mobile: req.body.mobile || "9820011299",
+    role_id: role.id,
+    role_name: role.name,
+    branch_id: branch.id,
+    branch_name: branch.name,
+    language: req.body.language || "en",
+    is_active: req.body.is_active !== undefined ? req.body.is_active : 1,
+  };
+  inMemory.users.push(newUser);
+  return res.status(201).json(envelope(newUser));
+});
+
+app.put("/api/v1/users/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.users.findIndex(u => u.id === id);
+  if (idx !== -1) {
+    const role = inMemory.roles.find(r => r.id === Number(req.body.role_id));
+    const branch = inMemory.branches.find(b => b.id === Number(req.body.branch_id));
+    inMemory.users[idx] = {
+      ...inMemory.users[idx],
+      ...req.body,
+      role_name: role ? role.name : inMemory.users[idx].role_name,
+      branch_name: branch ? branch.name : inMemory.users[idx].branch_name,
+    };
+    return res.json(envelope(inMemory.users[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "User not found" }]));
+});
+
+app.delete("/api/v1/users/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.users = inMemory.users.filter(u => u.id !== id);
+  return res.json(envelope({ success: true }));
+});
+
+app.post("/api/v1/users/:id/reset-device", (req, res) => {
+  return res.json(envelope({ success: true, message: "Device bound reset successfully" }));
+});
+
+app.post("/api/v1/users/:id/revoke-sessions", (req, res) => {
+  return res.json(envelope({ success: true, message: "All sessions revoked successfully" }));
+});
+
 app.get("/api/v1/roles", (req, res) => {
   return res.json(listEnvelope(inMemory.roles));
+});
+
+app.post("/api/v1/roles", (req, res) => {
+  const newRole = {
+    id: inMemory.roles.length + 1,
+    code: req.body.code ? req.body.code.toLowerCase() : `role_${inMemory.roles.length + 1}`,
+    name: req.body.name,
+    description: req.body.description || "Custom Role",
+    app_view: req.body.app_view || "web",
+    is_system: false,
+    users_count: 0,
+    permissions: req.body.permissions || {},
+  };
+  inMemory.roles.push(newRole);
+  return res.status(201).json(envelope(newRole));
+});
+
+app.put("/api/v1/roles/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = inMemory.roles.findIndex(r => r.id === id);
+  if (idx !== -1) {
+    inMemory.roles[idx] = { ...inMemory.roles[idx], ...req.body };
+    return res.json(envelope(inMemory.roles[idx]));
+  }
+  return res.status(404).json(envelope(null, {}, [{ message: "Role not found" }]));
+});
+
+app.delete("/api/v1/roles/:id", (req, res) => {
+  const id = Number(req.params.id);
+  inMemory.roles = inMemory.roles.filter(r => r.id !== id);
+  return res.json(envelope({ success: true }));
 });
 
 app.get("/api/v1/roles/:id", (req, res) => {
