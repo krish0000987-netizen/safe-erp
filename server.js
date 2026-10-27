@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -42,54 +43,71 @@ function listEnvelope(items = [], total = null, page = 1, perPage = 25) {
   };
 }
 
+function getFilter(req, field) {
+  if (req.query.filter && typeof req.query.filter === "object") {
+    if (req.query.filter[field] !== undefined) return req.query.filter[field];
+  }
+  if (req.query[`filter[${field}]`] !== undefined) return req.query[`filter[${field}]`];
+  if (req.query[field] !== undefined) return req.query[field];
+  return undefined;
+}
+
 // ============================================================================
 // IN-MEMORY COMPREHENSIVE STORE (Seeded with rich, detailed Indian enterprise demo data)
 // ============================================================================
+const DB_FILE = process.env.VERCEL ? "/tmp/.sgf_cache.json" : path.join(__dirname, ".db_store.json");
+
 const inMemory = {
   // 1. Clients
   clients: [
-    { id: 1, name: "Lodha Group", code: "CLI-LODHA", company_name: "Macrotech Developers Ltd", contact_person: "Arun Singhania (VP Security)", email: "arun.s@lodhagroup.com", phone: "+91 98201 55667", city: "Mumbai", gstin: "27AABCM1234F1Z5", sites_count: 1, deployed_count: 12, required_guards: 12, status: "Active", is_active: 1 },
-    { id: 2, name: "HDFC Bank Ltd", code: "CLI-HDFC", company_name: "HDFC Bank Corporate Headquarters", contact_person: "Ramesh Iyer (Head of Facilities)", email: "ramesh.iyer@hdfcbank.com", phone: "+91 98202 66778", city: "Mumbai", gstin: "27AAACH2702H1ZK", sites_count: 1, deployed_count: 18, required_guards: 18, status: "Active", is_active: 1 },
-    { id: 3, name: "Reliance Corporate Park", code: "CLI-RCP", company_name: "Reliance Industries Ltd", contact_person: "Col. Sanjay Verma (Chief Security Officer)", email: "sanjay.verma@ril.com", phone: "+91 98203 77889", city: "Navi Mumbai", gstin: "27AABCR1234G1Z8", sites_count: 1, deployed_count: 25, required_guards: 25, status: "Active", is_active: 1 },
-    { id: 4, name: "Godrej Properties", code: "CLI-GODREJ", company_name: "Godrej Properties Ltd", contact_person: "Pooja Kulkarni (Facilities Lead)", email: "pooja.k@godrejproperties.com", phone: "+91 98204 88990", city: "Mumbai", gstin: "27AABCG5678H1Z1", sites_count: 1, deployed_count: 15, required_guards: 15, status: "Active", is_active: 1 },
-    { id: 5, name: "Phoenix Mills", code: "CLI-PHOENIX", company_name: "The Phoenix Mills Ltd", contact_person: "Mahesh Jadhav (Operations Director)", email: "mahesh.j@phoenixmills.com", phone: "+91 98205 99001", city: "Mumbai", gstin: "27AABCP9012J1Z3", sites_count: 1, deployed_count: 30, required_guards: 30, status: "Active", is_active: 1 },
+    { id: 1, name: "Lodha Group", code: "CLI-LODHA", company_name: "Macrotech Developers Ltd", legal_name: "Macrotech Developers Ltd", contact_name: "Arun Singhania", contact_person: "Arun Singhania (VP Security)", email: "arun.s@lodhagroup.com", contact_email: "arun.s@lodhagroup.com", phone: "+91 98201 55667", contact_mobile: "9820155667", city: "Mumbai", state: "Maharashtra", state_code: "27", gstin: "27AABCM1234F1Z5", pan: "AABCM1234F", billing_address: "Lodha Excelus, Apollo Mills Compound, Mahalaxmi", pincode: "400011", credit_days: 30, tds_rate_bp: 200, sites_count: 1, deployed_count: 2, required_guards: 12, required_count: 12, active_contracts: 1, contracts_count: 1, status: "active", is_active: 1, branch_name: "Head Office (Mumbai)", created_at: "2026-09-01T00:00:00Z" },
+    { id: 2, name: "HDFC Bank Ltd", code: "CLI-HDFC", company_name: "HDFC Bank Corporate Headquarters", legal_name: "HDFC Bank Corporate Headquarters", contact_name: "Ramesh Iyer", contact_person: "Ramesh Iyer (Head of Facilities)", email: "ramesh.iyer@hdfcbank.com", contact_email: "ramesh.iyer@hdfcbank.com", phone: "+91 98202 66778", contact_mobile: "9820266778", city: "Mumbai", state: "Maharashtra", state_code: "27", gstin: "27AAACH2702H1ZK", pan: "AAACH2702H", billing_address: "HDFC Bank House, Senapati Bapat Marg, Lower Parel", pincode: "400013", credit_days: 45, tds_rate_bp: 200, sites_count: 1, deployed_count: 3, required_guards: 18, required_count: 18, active_contracts: 1, contracts_count: 1, status: "active", is_active: 1, branch_name: "Head Office (Mumbai)", created_at: "2026-09-01T00:00:00Z" },
+    { id: 3, name: "Reliance Corporate Park", code: "CLI-RCP", company_name: "Reliance Industries Ltd", legal_name: "Reliance Industries Ltd", contact_name: "Col. Sanjay Verma", contact_person: "Col. Sanjay Verma (Chief Security Officer)", email: "sanjay.verma@ril.com", contact_email: "sanjay.verma@ril.com", phone: "+91 98203 77889", contact_mobile: "9820377889", city: "Navi Mumbai", state: "Maharashtra", state_code: "27", gstin: "27AABCR1234G1Z8", pan: "AABCR1234G", billing_address: "Reliance Corporate Park, Thane-Belapur Road, Ghansoli", pincode: "400701", credit_days: 30, tds_rate_bp: 200, sites_count: 1, deployed_count: 2, required_guards: 25, required_count: 25, active_contracts: 1, contracts_count: 1, status: "active", is_active: 1, branch_name: "Head Office (Mumbai)", created_at: "2026-09-01T00:00:00Z" },
+    { id: 4, name: "Godrej Properties", code: "CLI-GODREJ", company_name: "Godrej Properties Ltd", legal_name: "Godrej Properties Ltd", contact_name: "Pooja Kulkarni", contact_person: "Pooja Kulkarni (Facilities Lead)", email: "pooja.k@godrejproperties.com", contact_email: "pooja.k@godrejproperties.com", phone: "+91 98204 88990", contact_mobile: "9820488990", city: "Mumbai", state: "Maharashtra", state_code: "27", gstin: "27AABCG5678H1Z1", pan: "AABCG5678H", billing_address: "Godrej One, 5th Floor, Pirojshanagar, Vikhroli East", pincode: "400079", credit_days: 30, tds_rate_bp: 200, sites_count: 1, deployed_count: 1, required_guards: 15, required_count: 15, active_contracts: 1, contracts_count: 1, status: "active", is_active: 1, branch_name: "Head Office (Mumbai)", created_at: "2026-09-01T00:00:00Z" },
+    { id: 5, name: "Phoenix Mills", code: "CLI-PHOENIX", company_name: "The Phoenix Mills Ltd", legal_name: "The Phoenix Mills Ltd", contact_name: "Mahesh Jadhav", contact_person: "Mahesh Jadhav (Operations Director)", email: "mahesh.j@phoenixmills.com", contact_email: "mahesh.j@phoenixmills.com", phone: "+91 98205 99001", contact_mobile: "9820599001", city: "Mumbai", state: "Maharashtra", state_code: "27", gstin: "27AABCP9012J1Z3", pan: "AABCP9012J", billing_address: "462 Senapati Bapat Marg, Lower Parel", pincode: "400013", credit_days: 30, tds_rate_bp: 200, sites_count: 1, deployed_count: 2, required_guards: 30, required_count: 30, active_contracts: 1, contracts_count: 1, status: "active", is_active: 1, branch_name: "Head Office (Mumbai)", created_at: "2026-09-01T00:00:00Z" },
   ],
 
   // 2. Sites
   sites: [
-    { id: 1, client_id: 1, client_name: "Lodha Group", name: "Lodha Bellissimo", code: "SITE-LOD-01", address: "Mahalaxmi, Mumbai", city: "Mumbai", latitude: 18.9912, longitude: 72.8315, geofence_radius_meters: 200, supervisor_name: "Vikram Deshmukh", supervisor_phone: "+91 9820011225", deployed_count: 12, required_guards: 12, is_active: 1, status: "Active" },
-    { id: 2, client_id: 2, client_name: "HDFC Bank Ltd", name: "HDFC Bank BKC Complex", code: "SITE-HDFC-01", address: "Bandra Kurla Complex", city: "Mumbai", latitude: 19.0665, longitude: 72.8682, geofence_radius_meters: 150, supervisor_name: "Satish Pawar", supervisor_phone: "+91 9820011227", deployed_count: 18, required_guards: 18, is_active: 1, status: "Active" },
-    { id: 3, client_id: 3, client_name: "Reliance Corporate Park", name: "Reliance Tech Park - Block A", code: "SITE-RCP-01", address: "Ghansoli, Navi Mumbai", city: "Navi Mumbai", latitude: 19.1256, longitude: 73.0034, geofence_radius_meters: 300, supervisor_name: "Ganesh Shinde", supervisor_phone: "+91 9820011228", deployed_count: 25, required_guards: 25, is_active: 1, status: "Active" },
-    { id: 4, client_id: 4, client_name: "Godrej Properties", name: "Godrej One Corporate Tower", code: "SITE-GOD-01", address: "Vikhroli East, Mumbai", city: "Mumbai", latitude: 19.1023, longitude: 72.9284, geofence_radius_meters: 200, supervisor_name: "Ajay More", supervisor_phone: "+91 9820011229", deployed_count: 15, required_guards: 15, is_active: 1, status: "Active" },
-    { id: 5, client_id: 5, client_name: "Phoenix Mills", name: "Phoenix Palladium Mall", code: "SITE-PHX-01", address: "Lower Parel, Mumbai", city: "Mumbai", latitude: 18.9950, longitude: 72.8258, geofence_radius_meters: 250, supervisor_name: "Nitin Sawant", supervisor_phone: "+91 9820011230", deployed_count: 30, required_guards: 30, is_active: 1, status: "Active" },
+    { id: 1, client_id: 1, client_name: "Lodha Group", name: "Lodha Bellissimo", code: "SITE-LOD-01", address: "Mahalaxmi, Mumbai", city: "Mumbai", latitude: 18.9912, longitude: 72.8315, geofence_radius_meters: 200, supervisor_name: "Vikram Deshmukh", supervisor_phone: "+91 9820011225", deployed_count: 2, required_guards: 12, required_count: 12, is_active: 1, status: "active" },
+    { id: 2, client_id: 2, client_name: "HDFC Bank Ltd", name: "HDFC Bank BKC Complex", code: "SITE-HDFC-01", address: "Bandra Kurla Complex", city: "Mumbai", latitude: 19.0665, longitude: 72.8682, geofence_radius_meters: 150, supervisor_name: "Satish Pawar", supervisor_phone: "+91 9820011227", deployed_count: 3, required_guards: 18, required_count: 18, is_active: 1, status: "active" },
+    { id: 3, client_id: 3, client_name: "Reliance Corporate Park", name: "Reliance Tech Park - Block A", code: "SITE-RCP-01", address: "Ghansoli, Navi Mumbai", city: "Navi Mumbai", latitude: 19.1256, longitude: 73.0034, geofence_radius_meters: 300, supervisor_name: "Ganesh Shinde", supervisor_phone: "+91 9820011228", deployed_count: 2, required_guards: 25, required_count: 25, is_active: 1, status: "active" },
+    { id: 4, client_id: 4, client_name: "Godrej Properties", name: "Godrej One Corporate Tower", code: "SITE-GOD-01", address: "Vikhroli East, Mumbai", city: "Mumbai", latitude: 19.1023, longitude: 72.9284, geofence_radius_meters: 200, supervisor_name: "Ajay More", supervisor_phone: "+91 9820011229", deployed_count: 1, required_guards: 15, required_count: 15, is_active: 1, status: "active" },
+    { id: 5, client_id: 5, client_name: "Phoenix Mills", name: "Phoenix Palladium Mall", code: "SITE-PHX-01", address: "Lower Parel, Mumbai", city: "Mumbai", latitude: 18.9950, longitude: 72.8258, geofence_radius_meters: 250, supervisor_name: "Nitin Sawant", supervisor_phone: "+91 9820011230", deployed_count: 2, required_guards: 30, required_count: 30, is_active: 1, status: "active" },
   ],
 
   // 3. Guards
   guards: [
-    { id: 1, name: "Santosh Tukaram Jadhav", full_name: "Santosh Tukaram Jadhav", code: "SGF-G-1001", employee_id: "SGF-G-1001", mobile: "9892011001", category_name: "Senior Guard", designation: "Senior Guard", current_site_name: "Lodha Bellissimo", current_site_id: 1, blood_group: "O+", kyc_status: "Verified", pv_status: "Clear", missing_docs: 0, status: "Active", is_active: 1 },
-    { id: 2, name: "Mahesh Balasaheb Shinde", full_name: "Mahesh Balasaheb Shinde", code: "SGF-G-1002", employee_id: "SGF-G-1002", mobile: "9892011003", category_name: "Security Guard", designation: "Security Guard", current_site_name: "Lodha Bellissimo", current_site_id: 1, blood_group: "B+", kyc_status: "Verified", pv_status: "Clear", missing_docs: 0, status: "Active", is_active: 1 },
-    { id: 3, name: "Pravin Dattatray Patil", full_name: "Pravin Dattatray Patil", code: "SGF-G-1003", employee_id: "SGF-G-1003", mobile: "9892011005", category_name: "Head Guard", designation: "Head Guard", current_site_name: "HDFC Bank BKC Complex", current_site_id: 2, blood_group: "AB+", kyc_status: "Verified", pv_status: "Clear", missing_docs: 0, status: "Active", is_active: 1 },
-    { id: 4, name: "Rahul Suresh Gaikwad", full_name: "Rahul Suresh Gaikwad", code: "SGF-G-1004", employee_id: "SGF-G-1004", mobile: "9892011007", category_name: "Security Guard", designation: "Security Guard", current_site_name: "HDFC Bank BKC Complex", current_site_id: 2, blood_group: "A+", kyc_status: "Verified", pv_status: "Clear", missing_docs: 0, status: "Active", is_active: 1 },
-    { id: 5, name: "Sanjay Manohar Kadam", full_name: "Sanjay Manohar Kadam", code: "SGF-G-1005", employee_id: "SGF-G-1005", mobile: "9892011009", category_name: "Armed Guard", designation: "Armed Guard", current_site_name: "HDFC Bank BKC Complex", current_site_id: 2, blood_group: "O+", kyc_status: "Verified", pv_status: "Clear", missing_docs: 0, status: "Active", is_active: 1 },
-    { id: 6, name: "Pooja Ashok Chaugule", full_name: "Pooja Ashok Chaugule", code: "SGF-G-1006", employee_id: "SGF-G-1006", mobile: "9892011011", category_name: "Lady Guard", designation: "Lady Guard", current_site_name: "Phoenix Palladium Mall", current_site_id: 5, blood_group: "B+", kyc_status: "Verified", pv_status: "Clear", missing_docs: 0, status: "Active", is_active: 1 },
-    { id: 7, name: "Sunita Ramesh Kamble", full_name: "Sunita Ramesh Kamble", code: "SGF-G-1007", employee_id: "SGF-G-1007", mobile: "9892011013", category_name: "Lady Guard", designation: "Lady Guard", current_site_name: "Phoenix Palladium Mall", current_site_id: 5, blood_group: "A+", kyc_status: "Verified", pv_status: "Clear", missing_docs: 0, status: "Active", is_active: 1 },
-    { id: 8, name: "Deepak Namdeo Bhosle", full_name: "Deepak Namdeo Bhosle", code: "SGF-G-1008", employee_id: "SGF-G-1008", mobile: "9892011015", category_name: "Security Guard", designation: "Security Guard", current_site_name: "Reliance Tech Park - Block A", current_site_id: 3, blood_group: "O-", kyc_status: "Verified", pv_status: "Clear", missing_docs: 0, status: "Active", is_active: 1 },
-    { id: 9, name: "Anand Vilas Sawant", full_name: "Anand Vilas Sawant", code: "SGF-G-1009", employee_id: "SGF-G-1009", mobile: "9892011017", category_name: "Patrol Guard", designation: "Patrol Guard", current_site_name: "Reliance Tech Park - Block A", current_site_id: 3, blood_group: "B-", kyc_status: "Verified", pv_status: "Clear", missing_docs: 0, status: "Active", is_active: 1 },
-    { id: 10, name: "Kishore Pandurang Mane", full_name: "Kishore Pandurang Mane", code: "SGF-G-1010", employee_id: "SGF-G-1010", mobile: "9892011019", category_name: "Security Guard", designation: "Security Guard", current_site_name: "Godrej One Corporate Tower", current_site_id: 4, blood_group: "AB-", kyc_status: "Verified", pv_status: "Clear", missing_docs: 0, status: "Active", is_active: 1 },
+    { id: 1, name: "Santosh Tukaram Jadhav", full_name: "Santosh Tukaram Jadhav", code: "SGF-G-1001", employee_code: "SGF-G-1001", employee_id: "SGF-G-1001", mobile: "9892011001", category_name: "Senior Guard", designation: "Senior Guard", current_site_name: "Lodha Bellissimo", current_site_id: 1, current_client_name: "Lodha Group", current_client_id: 1, current_deployment_id: 1, deployed_since: "2026-09-01", blood_group: "O+", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 2, name: "Mahesh Balasaheb Shinde", full_name: "Mahesh Balasaheb Shinde", code: "SGF-G-1002", employee_code: "SGF-G-1002", employee_id: "SGF-G-1002", mobile: "9892011003", category_name: "Security Guard", designation: "Security Guard", current_site_name: "Lodha Bellissimo", current_site_id: 1, current_client_name: "Lodha Group", current_client_id: 1, current_deployment_id: 2, deployed_since: "2026-09-01", blood_group: "B+", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 3, name: "Pravin Dattatray Patil", full_name: "Pravin Dattatray Patil", code: "SGF-G-1003", employee_code: "SGF-G-1003", employee_id: "SGF-G-1003", mobile: "9892011005", category_name: "Head Guard", designation: "Head Guard", current_site_name: "HDFC Bank BKC Complex", current_site_id: 2, current_client_name: "HDFC Bank Ltd", current_client_id: 2, current_deployment_id: 3, deployed_since: "2026-09-01", blood_group: "AB+", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 4, name: "Rahul Suresh Gaikwad", full_name: "Rahul Suresh Gaikwad", code: "SGF-G-1004", employee_code: "SGF-G-1004", employee_id: "SGF-G-1004", mobile: "9892011007", category_name: "Security Guard", designation: "Security Guard", current_site_name: "HDFC Bank BKC Complex", current_site_id: 2, current_client_name: "HDFC Bank Ltd", current_client_id: 2, current_deployment_id: 4, deployed_since: "2026-09-01", blood_group: "A+", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 5, name: "Sanjay Manohar Kadam", full_name: "Sanjay Manohar Kadam", code: "SGF-G-1005", employee_code: "SGF-G-1005", employee_id: "SGF-G-1005", mobile: "9892011009", category_name: "Armed Guard", designation: "Armed Guard", current_site_name: "HDFC Bank BKC Complex", current_site_id: 2, current_client_name: "HDFC Bank Ltd", current_client_id: 2, current_deployment_id: 5, deployed_since: "2026-09-01", blood_group: "O+", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 6, name: "Pooja Ashok Chaugule", full_name: "Pooja Ashok Chaugule", code: "SGF-G-1006", employee_code: "SGF-G-1006", employee_id: "SGF-G-1006", mobile: "9892011011", category_name: "Lady Guard", designation: "Lady Guard", current_site_name: "Phoenix Palladium Mall", current_site_id: 5, current_client_name: "Phoenix Mills", current_client_id: 5, current_deployment_id: 6, deployed_since: "2026-09-01", blood_group: "B+", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 7, name: "Sunita Ramesh Kamble", full_name: "Sunita Ramesh Kamble", code: "SGF-G-1007", employee_code: "SGF-G-1007", employee_id: "SGF-G-1007", mobile: "9892011013", category_name: "Lady Guard", designation: "Lady Guard", current_site_name: "Phoenix Palladium Mall", current_site_id: 5, current_client_name: "Phoenix Mills", current_client_id: 5, current_deployment_id: 7, deployed_since: "2026-09-01", blood_group: "A+", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 8, name: "Deepak Namdeo Bhosle", full_name: "Deepak Namdeo Bhosle", code: "SGF-G-1008", employee_code: "SGF-G-1008", employee_id: "SGF-G-1008", mobile: "9892011015", category_name: "Security Guard", designation: "Security Guard", current_site_name: "Reliance Tech Park - Block A", current_site_id: 3, current_client_name: "Reliance Corporate Park", current_client_id: 3, current_deployment_id: 8, deployed_since: "2026-09-01", blood_group: "O-", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 9, name: "Anand Vilas Sawant", full_name: "Anand Vilas Sawant", code: "SGF-G-1009", employee_code: "SGF-G-1009", employee_id: "SGF-G-1009", mobile: "9892011017", category_name: "Patrol Guard", designation: "Patrol Guard", current_site_name: "Reliance Tech Park - Block A", current_site_id: 3, current_client_name: "Reliance Corporate Park", current_client_id: 3, current_deployment_id: 9, deployed_since: "2026-09-01", blood_group: "B-", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 10, name: "Kishore Pandurang Mane", full_name: "Kishore Pandurang Mane", code: "SGF-G-1010", employee_code: "SGF-G-1010", employee_id: "SGF-G-1010", mobile: "9892011019", category_name: "Security Guard", designation: "Security Guard", current_site_name: "Godrej One Corporate Tower", current_site_id: 4, current_client_name: "Godrej Properties", current_client_id: 4, current_deployment_id: 10, deployed_since: "2026-09-01", blood_group: "AB-", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 11, name: "Vikas Ramchandra Shinde", full_name: "Vikas Ramchandra Shinde", code: "SGF-G-1011", employee_code: "SGF-G-1011", employee_id: "SGF-G-1011", mobile: "9892011021", category_name: "Security Guard", designation: "Security Guard", current_site_name: null, current_site_id: null, current_client_name: null, current_client_id: null, current_deployment_id: null, deployed_since: null, blood_group: "O+", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 12, name: "Pradeep Shankar Chavan", full_name: "Pradeep Shankar Chavan", code: "SGF-G-1012", employee_code: "SGF-G-1012", employee_id: "SGF-G-1012", mobile: "9892011023", category_name: "Head Guard", designation: "Head Guard", current_site_name: null, current_site_id: null, current_client_name: null, current_client_id: null, current_deployment_id: null, deployed_since: null, blood_group: "B+", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 13, name: "Sunil Kashinath More", full_name: "Sunil Kashinath More", code: "SGF-G-1013", employee_code: "SGF-G-1013", employee_id: "SGF-G-1013", mobile: "9892011025", category_name: "Armed Guard", designation: "Armed Guard", current_site_name: null, current_site_id: null, current_client_name: null, current_client_id: null, current_deployment_id: null, deployed_since: null, blood_group: "A+", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 14, name: "Ganesh Pandurang Salunkhe", full_name: "Ganesh Pandurang Salunkhe", code: "SGF-G-1014", employee_code: "SGF-G-1014", employee_id: "SGF-G-1014", mobile: "9892011027", category_name: "Senior Guard", designation: "Senior Guard", current_site_name: null, current_site_id: null, current_client_name: null, current_client_id: null, current_deployment_id: null, deployed_since: null, blood_group: "AB+", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 15, name: "Amol Dnyaneshwar Thorat", full_name: "Amol Dnyaneshwar Thorat", code: "SGF-G-1015", employee_code: "SGF-G-1015", employee_id: "SGF-G-1015", mobile: "9892011029", category_name: "Security Guard", designation: "Security Guard", current_site_name: null, current_site_id: null, current_client_name: null, current_client_id: null, current_deployment_id: null, deployed_since: null, blood_group: "O-", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
+    { id: 16, name: "Rameshwar Babanrao Kale", full_name: "Rameshwar Babanrao Kale", code: "SGF-G-1016", employee_code: "SGF-G-1016", employee_id: "SGF-G-1016", mobile: "9892011031", category_name: "Patrol Guard", designation: "Patrol Guard", current_site_name: null, current_site_id: null, current_client_name: null, current_client_id: null, current_deployment_id: null, deployed_since: null, blood_group: "B-", kyc_status: "verified", pv_status: "clear", missing_docs: 0, status: "active", is_active: 1 },
   ],
 
   // 4. Deployments
   deployments: [
-    { id: 1, guard_id: 1, guard_name: "Santosh Tukaram Jadhav", site_id: 1, site_name: "Lodha Bellissimo", shift_id: 1, shift_name: "Morning Shift (A)", status: "Active", designation: "Senior Guard - Main Gate" },
-    { id: 2, guard_id: 2, guard_name: "Mahesh Balasaheb Shinde", site_id: 1, site_name: "Lodha Bellissimo", shift_id: 1, shift_name: "Morning Shift (A)", status: "Active", designation: "Security Guard - Lobby" },
-    { id: 3, guard_id: 3, guard_name: "Pravin Dattatray Patil", site_id: 2, site_name: "HDFC Bank BKC Complex", shift_id: 1, shift_name: "Morning Shift (A)", status: "Active", designation: "Head Guard - Reception" },
-    { id: 4, guard_id: 4, guard_name: "Rahul Suresh Gaikwad", site_id: 2, site_name: "HDFC Bank BKC Complex", shift_id: 2, shift_name: "Afternoon Shift (B)", status: "Active", designation: "Security Guard - Basement" },
-    { id: 5, guard_id: 5, guard_name: "Sanjay Manohar Kadam", site_id: 2, site_name: "HDFC Bank BKC Complex", shift_id: 1, shift_name: "Morning Shift (A)", status: "Active", designation: "Armed Guard - Cash Vault" },
-    { id: 6, guard_id: 6, guard_name: "Pooja Ashok Chaugule", site_id: 5, site_name: "Phoenix Palladium Mall", shift_id: 1, shift_name: "Morning Shift (A)", status: "Active", designation: "Lady Guard - VIP Entrance" },
-    { id: 7, guard_id: 7, guard_name: "Sunita Ramesh Kamble", site_id: 5, site_name: "Phoenix Palladium Mall", shift_id: 2, shift_name: "Afternoon Shift (B)", status: "Active", designation: "Lady Guard - Retail Arcade" },
-    { id: 8, guard_id: 8, guard_name: "Deepak Namdeo Bhosle", site_id: 3, site_name: "Reliance Tech Park - Block A", shift_id: 1, shift_name: "Morning Shift (A)", status: "Active", designation: "Security Guard - Gate 2" },
-    { id: 9, guard_id: 9, guard_name: "Anand Vilas Sawant", site_id: 3, site_name: "Reliance Tech Park - Block A", shift_id: 3, shift_name: "Night Shift (C)", status: "Active", designation: "Patrol Guard - Perimeter" },
-    { id: 10, guard_id: 10, guard_name: "Kishore Pandurang Mane", site_id: 4, site_name: "Godrej One Corporate Tower", shift_id: 1, shift_name: "Morning Shift (A)", status: "Active", designation: "Security Guard - Podium Gate" },
+    { id: 1, guard_id: 1, guard_name: "Santosh Tukaram Jadhav", employee_code: "SGF-G-1001", category_name: "Senior Guard", site_id: 1, site_name: "Lodha Bellissimo", client_id: 1, client_name: "Lodha Group", shift_id: 1, shift_name: "Morning Shift (A)", start_time: "07:00:00", end_time: "15:00:00", from_date: "2026-09-01", to_date: null, is_open: 1, is_relief: 0, status: "active", designation: "Senior Guard - Main Gate" },
+    { id: 2, guard_id: 2, guard_name: "Mahesh Balasaheb Shinde", employee_code: "SGF-G-1002", category_name: "Security Guard", site_id: 1, site_name: "Lodha Bellissimo", client_id: 1, client_name: "Lodha Group", shift_id: 1, shift_name: "Morning Shift (A)", start_time: "07:00:00", end_time: "15:00:00", from_date: "2026-09-01", to_date: null, is_open: 1, is_relief: 0, status: "active", designation: "Security Guard - Lobby" },
+    { id: 3, guard_id: 3, guard_name: "Pravin Dattatray Patil", employee_code: "SGF-G-1003", category_name: "Head Guard", site_id: 2, site_name: "HDFC Bank BKC Complex", client_id: 2, client_name: "HDFC Bank Ltd", shift_id: 1, shift_name: "Morning Shift (A)", start_time: "07:00:00", end_time: "15:00:00", from_date: "2026-09-01", to_date: null, is_open: 1, is_relief: 0, status: "active", designation: "Head Guard - Reception" },
+    { id: 4, guard_id: 4, guard_name: "Rahul Suresh Gaikwad", employee_code: "SGF-G-1004", category_name: "Security Guard", site_id: 2, site_name: "HDFC Bank BKC Complex", client_id: 2, client_name: "HDFC Bank Ltd", shift_id: 2, shift_name: "Afternoon Shift (B)", start_time: "15:00:00", end_time: "23:00:00", from_date: "2026-09-01", to_date: null, is_open: 1, is_relief: 0, status: "active", designation: "Security Guard - Basement" },
+    { id: 5, guard_id: 5, guard_name: "Sanjay Manohar Kadam", employee_code: "SGF-G-1005", category_name: "Armed Guard", site_id: 2, site_name: "HDFC Bank BKC Complex", client_id: 2, client_name: "HDFC Bank Ltd", shift_id: 1, shift_name: "Morning Shift (A)", start_time: "07:00:00", end_time: "15:00:00", from_date: "2026-09-01", to_date: null, is_open: 1, is_relief: 0, status: "active", designation: "Armed Guard - Cash Vault" },
+    { id: 6, guard_id: 6, guard_name: "Pooja Ashok Chaugule", employee_code: "SGF-G-1006", category_name: "Lady Guard", site_id: 5, site_name: "Phoenix Palladium Mall", client_id: 5, client_name: "Phoenix Mills", shift_id: 1, shift_name: "Morning Shift (A)", start_time: "07:00:00", end_time: "15:00:00", from_date: "2026-09-01", to_date: null, is_open: 1, is_relief: 0, status: "active", designation: "Lady Guard - VIP Entrance" },
+    { id: 7, guard_id: 7, guard_name: "Sunita Ramesh Kamble", employee_code: "SGF-G-1007", category_name: "Lady Guard", site_id: 5, site_name: "Phoenix Palladium Mall", client_id: 5, client_name: "Phoenix Mills", shift_id: 2, shift_name: "Afternoon Shift (B)", start_time: "15:00:00", end_time: "23:00:00", from_date: "2026-09-01", to_date: null, is_open: 1, is_relief: 0, status: "active", designation: "Lady Guard - Retail Arcade" },
+    { id: 8, guard_id: 8, guard_name: "Deepak Namdeo Bhosle", employee_code: "SGF-G-1008", category_name: "Security Guard", site_id: 3, site_name: "Reliance Tech Park - Block A", client_id: 3, client_name: "Reliance Corporate Park", shift_id: 1, shift_name: "Morning Shift (A)", start_time: "07:00:00", end_time: "15:00:00", from_date: "2026-09-01", to_date: null, is_open: 1, is_relief: 0, status: "active", designation: "Security Guard - Gate 2" },
+    { id: 9, guard_id: 9, guard_name: "Anand Vilas Sawant", employee_code: "SGF-G-1009", category_name: "Patrol Guard", site_id: 3, site_name: "Reliance Tech Park - Block A", client_id: 3, client_name: "Reliance Corporate Park", shift_id: 3, shift_name: "Night Shift (C)", start_time: "23:00:00", end_time: "07:00:00", from_date: "2026-09-01", to_date: null, is_open: 1, is_relief: 0, status: "active", designation: "Patrol Guard - Perimeter" },
+    { id: 10, guard_id: 10, guard_name: "Kishore Pandurang Mane", employee_code: "SGF-G-1010", category_name: "Security Guard", site_id: 4, site_name: "Godrej One Corporate Tower", client_id: 4, client_name: "Godrej Properties", shift_id: 1, shift_name: "Morning Shift (A)", start_time: "07:00:00", end_time: "15:00:00", from_date: "2026-09-01", to_date: null, is_open: 1, is_relief: 0, status: "active", designation: "Security Guard - Podium Gate" },
   ],
 
   // 5. Shifts
@@ -363,6 +381,35 @@ const inMemory = {
     { id: 102, client_id: 1, name: "Kunal Mehra", email: "kunal.m@lodhagroup.com", mobile: "9820155668", role: "Site Facility Lead", is_active: 1 },
   ],
 };
+
+function saveStore() {
+  try {
+    const toSave = {
+      clients: inMemory.clients,
+      sites: inMemory.sites,
+      guards: inMemory.guards,
+      deployments: inMemory.deployments,
+    };
+    fs.writeFileSync(DB_FILE, JSON.stringify(toSave, null, 2), "utf-8");
+  } catch (err) {
+    // Non-fatal in read-only environments
+  }
+}
+
+function loadStore() {
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const data = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+      if (Array.isArray(data.clients) && data.clients.length) inMemory.clients = data.clients;
+      if (Array.isArray(data.sites) && data.sites.length) inMemory.sites = data.sites;
+      if (Array.isArray(data.guards) && data.guards.length) inMemory.guards = data.guards;
+      if (Array.isArray(data.deployments) && data.deployments.length) inMemory.deployments = data.deployments;
+    }
+  } catch (err) {
+    // Non-fatal
+  }
+}
+loadStore();
 
 // ============================================================================
 // ATTENDANCE & LEAVE STORE INITIALIZER
@@ -1385,36 +1432,155 @@ app.get("/api/v1/dashboard", (req, res) => {
 // CLIENTS & SITES
 // ============================================================================
 app.get("/api/v1/clients", (req, res) => {
-  return res.json(listEnvelope(inMemory.clients));
+  let list = inMemory.clients.map(c => {
+    const clientSites = inMemory.sites.filter(s => s.client_id === c.id);
+    const clientDeps = inMemory.deployments.filter(d => d.client_id === c.id && (d.is_open || d.status === "active" || d.status === "Active"));
+    return {
+      ...c,
+      sites_count: clientSites.length || c.sites_count || 0,
+      deployed_count: clientDeps.length || c.deployed_count || 0,
+      required_count: c.required_count !== undefined ? c.required_count : (c.required_guards || 0),
+      active_contracts: c.active_contracts !== undefined ? c.active_contracts : 1,
+    };
+  });
+
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    list = list.filter(c =>
+      (c.name && c.name.toLowerCase().includes(q)) ||
+      (c.code && c.code.toLowerCase().includes(q)) ||
+      (c.company_name && c.company_name.toLowerCase().includes(q)) ||
+      (c.city && c.city.toLowerCase().includes(q)) ||
+      (c.gstin && c.gstin.toLowerCase().includes(q)) ||
+      (c.contact_name && c.contact_name.toLowerCase().includes(q))
+    );
+  }
+
+  const statusFilter = getFilter(req, "status");
+  if (statusFilter) {
+    list = list.filter(c => String(c.status).toLowerCase() === String(statusFilter).toLowerCase());
+  }
+
+  const industryFilter = getFilter(req, "industry_id");
+  if (industryFilter) {
+    list = list.filter(c => String(c.industry_id) === String(industryFilter));
+  }
+
+  const stateFilter = getFilter(req, "state_code");
+  if (stateFilter) {
+    list = list.filter(c => String(c.state_code) === String(stateFilter));
+  }
+
+  const branchFilter = getFilter(req, "branch_id");
+  if (branchFilter) {
+    list = list.filter(c => String(c.branch_id) === String(branchFilter));
+  }
+
+  const sort = req.query.sort || "name";
+  const dir = req.query.dir === "desc" ? -1 : 1;
+  list.sort((a, b) => {
+    let va = a[sort] ?? "";
+    let vb = b[sort] ?? "";
+    if (typeof va === "string") va = va.toLowerCase();
+    if (typeof vb === "string") vb = vb.toLowerCase();
+    if (va < vb) return -1 * dir;
+    if (va > vb) return 1 * dir;
+    return 0;
+  });
+
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || 25;
+  const total = list.length;
+  const paginated = req.query.page ? list.slice((page - 1) * perPage, page * perPage) : list;
+
+  return res.json(listEnvelope(paginated, total, page, perPage));
 });
 
 app.post("/api/v1/clients", (req, res) => {
+  const id = Math.max(0, ...inMemory.clients.map(c => c.id || 0)) + 1;
+  const clientName = (req.body.name || req.body.company_name || "New Client").trim();
+  const rawCode = (req.body.code || "").trim();
+  const code = rawCode || `CLI-${clientName.slice(0, 4).toUpperCase().replace(/[^A-Z0-9]/g, "X")}-${String(id).padStart(3, "0")}`;
+
   const newClient = {
-    id: inMemory.clients.length + 1,
-    name: req.body.name || req.body.company_name,
-    code: `CLI-${(req.body.name || "NEW").slice(0, 4).toUpperCase()}`,
-    company_name: req.body.company_name || req.body.name,
-    contact_person: req.body.contact_person || "Operations Lead",
-    email: req.body.email || "ops@client.com",
-    phone: req.body.phone || "+91 98200 00000",
+    id,
+    code,
+    name: clientName,
+    company_name: req.body.legal_name || req.body.company_name || clientName,
+    legal_name: req.body.legal_name || req.body.company_name || clientName,
+    industry_id: req.body.industry_id ? Number(req.body.industry_id) : null,
+    industry_name: req.body.industry_id === 1 ? "Corporate IT" : req.body.industry_id === 2 ? "Banking & Finance" : "Commercial Real Estate",
+    gstin: req.body.gstin ? req.body.gstin.trim().toUpperCase() : null,
+    pan: req.body.pan ? req.body.pan.trim().toUpperCase() : null,
+    state: req.body.state || "Maharashtra",
+    state_code: req.body.state_code || "27",
+    billing_address: req.body.billing_address || null,
     city: req.body.city || "Mumbai",
-    gstin: req.body.gstin || "27AABCC0000A1Z5",
-    sites_count: 0,
+    pincode: req.body.pincode || null,
+    contact_name: req.body.contact_name || req.body.contact_person || "Operations Lead",
+    contact_person: req.body.contact_name || req.body.contact_person || "Operations Lead",
+    contact_mobile: req.body.contact_mobile || req.body.phone || null,
+    phone: req.body.contact_mobile || req.body.phone || "+91 98200 00000",
+    contact_email: req.body.contact_email || req.body.email || null,
+    email: req.body.contact_email || req.body.email || "ops@client.com",
+    credit_days: req.body.credit_days !== undefined && req.body.credit_days !== "" ? Number(req.body.credit_days) : 30,
+    tds_rate_bp: req.body.tds_rate_bp ? Number(req.body.tds_rate_bp) : 0,
+    status: req.body.status || "active",
+    is_active: req.body.status === "inactive" ? 0 : 1,
+    notes: req.body.notes || null,
+    branch_id: req.body.branch_id ? Number(req.body.branch_id) : null,
+    branch_name: "Head Office (Mumbai)",
+    sites_count: 1,
     deployed_count: 0,
     required_guards: 0,
-    status: "Active",
-    is_active: 1,
+    required_count: 0,
+    active_contracts: 1,
+    contracts_count: 1,
+    created_at: new Date().toISOString(),
+    custom: req.body.custom || {},
   };
+
   inMemory.clients.unshift(newClient);
+
+  // Auto-generate a default Primary Site so this client is immediately deployable
+  const nextSiteId = Math.max(0, ...inMemory.sites.map(s => s.id || 0)) + 1;
+  const primarySite = {
+    id: nextSiteId,
+    client_id: newClient.id,
+    client_name: newClient.name,
+    name: `${newClient.name} - Head Office / Main Site`,
+    code: `SITE-${newClient.code.slice(0, 4)}-01`,
+    address: newClient.billing_address || `${newClient.city || "Mumbai"}, Maharashtra`,
+    city: newClient.city || "Mumbai",
+    latitude: 19.0760,
+    longitude: 72.8777,
+    geofence_radius_meters: 200,
+    supervisor_name: newClient.contact_name || "Operations Lead",
+    supervisor_phone: newClient.contact_mobile || "+91 9820011225",
+    deployed_count: 0,
+    required_guards: 1,
+    required_count: 1,
+    is_active: 1,
+    status: "active",
+    created_at: new Date().toISOString(),
+  };
+  inMemory.sites.unshift(primarySite);
+  saveStore();
+
   return res.status(201).json(envelope(newClient));
 });
 
 app.get("/api/v1/clients/:id", (req, res) => {
   const client = inMemory.clients.find(c => c.id === Number(req.params.id)) || inMemory.clients[0];
   const sites = inMemory.sites.filter(s => s.client_id === client.id);
+  const clientDeps = inMemory.deployments.filter(d => d.client_id === client.id);
   return res.json(envelope({
     ...client,
     sites,
+    sites_count: sites.length,
+    deployed_count: clientDeps.filter(d => d.is_open || d.status === "active").length,
+    required_count: client.required_count !== undefined ? client.required_count : (client.required_guards || 0),
+    active_contracts: client.active_contracts !== undefined ? client.active_contracts : 1,
     contracts_count: 1,
     active_invoices_count: 1,
     outstanding_paise: 42480000,
@@ -1422,16 +1588,38 @@ app.get("/api/v1/clients/:id", (req, res) => {
 });
 
 app.put("/api/v1/clients/:id", (req, res) => {
-  const idx = inMemory.clients.findIndex(c => c.id === Number(req.params.id));
+  const id = Number(req.params.id);
+  const idx = inMemory.clients.findIndex(c => c.id === id);
   if (idx !== -1) {
-    inMemory.clients[idx] = { ...inMemory.clients[idx], ...req.body };
+    inMemory.clients[idx] = {
+      ...inMemory.clients[idx],
+      ...req.body,
+      company_name: req.body.legal_name || req.body.company_name || inMemory.clients[idx].company_name,
+      contact_person: req.body.contact_name || req.body.contact_person || inMemory.clients[idx].contact_person,
+      phone: req.body.contact_mobile || req.body.phone || inMemory.clients[idx].phone,
+      email: req.body.contact_email || req.body.email || inMemory.clients[idx].email,
+      updated_at: new Date().toISOString(),
+    };
+    if (req.body.name) {
+      inMemory.sites.forEach(s => {
+        if (s.client_id === id) s.client_name = req.body.name;
+      });
+      inMemory.deployments.forEach(d => {
+        if (d.client_id === id) d.client_name = req.body.name;
+      });
+    }
+    saveStore();
     return res.json(envelope(inMemory.clients[idx]));
   }
-  return res.json(envelope(inMemory.clients[0]));
+  return res.status(404).json(envelope(null, {}, [{ message: "Client not found" }]));
 });
 
 app.delete("/api/v1/clients/:id", (req, res) => {
-  inMemory.clients = inMemory.clients.filter(c => c.id !== Number(req.params.id));
+  const id = Number(req.params.id);
+  inMemory.clients = inMemory.clients.filter(c => c.id !== id);
+  inMemory.sites = inMemory.sites.filter(s => s.client_id !== id);
+  inMemory.deployments = inMemory.deployments.filter(d => d.client_id !== id);
+  saveStore();
   return res.json(envelope({ success: true }));
 });
 
@@ -1476,7 +1664,57 @@ app.get("/api/v1/clients/:id/sites", (req, res) => {
 });
 
 app.get("/api/v1/sites", (req, res) => {
-  return res.json(listEnvelope(inMemory.sites));
+  let list = inMemory.sites.map(s => {
+    const client = inMemory.clients.find(c => c.id === s.client_id);
+    const activeDeps = inMemory.deployments.filter(d => d.site_id === s.id && (d.is_open || d.status === "active" || d.status === "Active"));
+    return {
+      ...s,
+      client_name: s.client_name || client?.name || "Client",
+      deployed_count: activeDeps.length || s.deployed_count || 0,
+      required_count: s.required_count !== undefined ? s.required_count : (s.required_guards || 1),
+    };
+  });
+
+  const clientId = getFilter(req, "client_id");
+  if (clientId) {
+    list = list.filter(s => String(s.client_id) === String(clientId));
+  }
+
+  const isActive = getFilter(req, "is_active");
+  if (isActive !== undefined && isActive !== "") {
+    const wantActive = isActive === "1" || isActive === "true" || isActive === 1;
+    list = list.filter(s => wantActive ? (s.is_active === 1 || s.is_active === true) : (!s.is_active || s.is_active === 0));
+  }
+
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    list = list.filter(s =>
+      (s.name && s.name.toLowerCase().includes(q)) ||
+      (s.client_name && s.client_name.toLowerCase().includes(q)) ||
+      (s.code && s.code.toLowerCase().includes(q)) ||
+      (s.city && s.city.toLowerCase().includes(q)) ||
+      (s.supervisor_name && s.supervisor_name.toLowerCase().includes(q))
+    );
+  }
+
+  const sort = req.query.sort || "name";
+  const dir = req.query.dir === "desc" ? -1 : 1;
+  list.sort((a, b) => {
+    let va = a[sort] ?? "";
+    let vb = b[sort] ?? "";
+    if (typeof va === "string") va = va.toLowerCase();
+    if (typeof vb === "string") vb = vb.toLowerCase();
+    if (va < vb) return -1 * dir;
+    if (va > vb) return 1 * dir;
+    return 0;
+  });
+
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || (req.query.page ? 25 : 200);
+  const total = list.length;
+  const paginated = req.query.page ? list.slice((page - 1) * perPage, page * perPage) : list;
+
+  return res.json(listEnvelope(paginated, total, page, perPage));
 });
 
 app.get("/api/v1/field/lookup", (req, res) => {
@@ -1484,12 +1722,15 @@ app.get("/api/v1/field/lookup", (req, res) => {
   const result = {};
 
   if (types.includes("sites")) {
-    result.sites = inMemory.sites.map(s => ({
-      id: s.id,
-      name: s.name,
-      client_name: s.client_name,
-      code: s.code,
-    }));
+    result.sites = inMemory.sites.map(s => {
+      const client = inMemory.clients.find(c => c.id === s.client_id);
+      return {
+        id: s.id,
+        name: s.name,
+        client_name: s.client_name || client?.name || "Client",
+        code: s.code,
+      };
+    });
   }
 
   if (types.includes("shifts")) {
@@ -1518,25 +1759,40 @@ app.get("/api/v1/field/lookup", (req, res) => {
 });
 
 app.post("/api/v1/sites", (req, res) => {
+  const clientId = Number(req.body.client_id) || 1;
+  const client = inMemory.clients.find(c => c.id === clientId);
+  const nextSiteId = Math.max(0, ...inMemory.sites.map(s => s.id || 0)) + 1;
+  const siteName = (req.body.name || "Main Site").trim();
+
   const newSite = {
-    id: inMemory.sites.length + 1,
-    client_id: Number(req.body.client_id) || 1,
-    client_name: inMemory.clients.find(c => c.id === Number(req.body.client_id))?.name || "Lodha Group",
-    name: req.body.name,
-    code: `SITE-${(req.body.name || "STE").slice(0, 3).toUpperCase()}-01`,
+    id: nextSiteId,
+    client_id: clientId,
+    client_name: client?.name || req.body.client_name || "Client",
+    name: siteName,
+    code: req.body.code ? req.body.code.trim().toUpperCase() : `SITE-${(client?.code || "STE").slice(0, 4)}-${String(nextSiteId).padStart(2, "0")}`,
     address: req.body.address || "Mumbai",
     city: req.body.city || "Mumbai",
-    latitude: Number(req.body.latitude) || 18.9912,
-    longitude: Number(req.body.longitude) || 72.8315,
-    geofence_radius_meters: Number(req.body.geofence_radius_meters) || 200,
+    state: req.body.state || "Maharashtra",
+    state_code: req.body.state_code || "27",
+    pincode: req.body.pincode || "400001",
+    latitude: Number(req.body.lat || req.body.latitude) || 18.9912,
+    longitude: Number(req.body.lng || req.body.longitude) || 72.8315,
+    geofence_radius_meters: Number(req.body.radius_m || req.body.geofence_radius_meters) || 200,
     supervisor_name: req.body.supervisor_name || "Vikram Deshmukh",
-    supervisor_phone: "+91 9820011225",
+    supervisor_phone: req.body.contact_mobile || "+91 9820011225",
+    supervisor_user_id: req.body.supervisor_user_id ? Number(req.body.supervisor_user_id) : null,
     deployed_count: 0,
-    required_guards: Number(req.body.required_guards) || 10,
-    is_active: 1,
-    status: "Active",
+    required_guards: Number(req.body.required_guards) || 1,
+    required_count: Number(req.body.required_guards) || 1,
+    is_active: req.body.is_active !== undefined ? (req.body.is_active ? 1 : 0) : 1,
+    status: "active",
+    created_at: new Date().toISOString(),
   };
   inMemory.sites.unshift(newSite);
+  if (client) {
+    client.sites_count = (client.sites_count || 0) + 1;
+  }
+  saveStore();
   return res.status(201).json(envelope(newSite));
 });
 
@@ -1545,6 +1801,7 @@ app.put("/api/v1/sites/:id", (req, res) => {
   const idx = inMemory.sites.findIndex(s => s.id === id);
   if (idx !== -1) {
     inMemory.sites[idx] = { ...inMemory.sites[idx], ...req.body };
+    saveStore();
     return res.json(envelope(inMemory.sites[idx]));
   }
   return res.status(404).json(envelope(null, {}, [{ message: "Site not found" }]));
@@ -1552,7 +1809,14 @@ app.put("/api/v1/sites/:id", (req, res) => {
 
 app.delete("/api/v1/sites/:id", (req, res) => {
   const id = Number(req.params.id);
+  const site = inMemory.sites.find(s => s.id === id);
   inMemory.sites = inMemory.sites.filter(s => s.id !== id);
+  inMemory.deployments = inMemory.deployments.filter(d => d.site_id !== id);
+  if (site) {
+    const client = inMemory.clients.find(c => c.id === site.client_id);
+    if (client && client.sites_count > 0) client.sites_count--;
+  }
+  saveStore();
   return res.json(envelope({ success: true }));
 });
 
@@ -1799,36 +2063,95 @@ app.post("/api/v1/guards/kiosk/sos", (req, res) => {
 });
 
 app.get("/api/v1/guards", (req, res) => {
-  return res.json(listEnvelope(inMemory.guards));
+  let list = inMemory.guards.map(g => {
+    const site = inMemory.sites.find(s => s.id === g.current_site_id);
+    const client = site ? inMemory.clients.find(c => c.id === site.client_id) : null;
+    return {
+      ...g,
+      employee_code: g.employee_code || g.code || g.employee_id || `SGF-G-${1000 + g.id}`,
+      current_client_name: g.current_client_name || site?.client_name || client?.name || (g.current_site_id ? "Client" : null),
+      current_client_id: g.current_client_id || site?.client_id || client?.id || null,
+      status: g.status ? g.status.toLowerCase() : "active",
+      is_deployed: g.current_site_id ? 1 : 0,
+    };
+  });
+
+  const deployedFilter = getFilter(req, "deployed");
+  if (deployedFilter !== undefined && deployedFilter !== "") {
+    const wantDeployed = deployedFilter === "1" || deployedFilter === "true" || deployedFilter === 1;
+    list = list.filter(g => wantDeployed ? !!g.current_site_id : !g.current_site_id);
+  }
+
+  const statusFilter = getFilter(req, "status");
+  if (statusFilter) {
+    list = list.filter(g => g.status === statusFilter.toLowerCase());
+  }
+
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    list = list.filter(g =>
+      (g.name && g.name.toLowerCase().includes(q)) ||
+      (g.employee_code && g.employee_code.toLowerCase().includes(q)) ||
+      (g.mobile && g.mobile.toLowerCase().includes(q)) ||
+      (g.category_name && g.category_name.toLowerCase().includes(q)) ||
+      (g.current_site_name && g.current_site_name.toLowerCase().includes(q))
+    );
+  }
+
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || (req.query.page ? 25 : 200);
+  const total = list.length;
+  const paginated = req.query.page ? list.slice((page - 1) * perPage, page * perPage) : list;
+
+  return res.json(listEnvelope(paginated, total, page, perPage));
 });
 
 app.post("/api/v1/guards", (req, res) => {
+  const nextGuardId = Math.max(0, ...inMemory.guards.map(g => g.id || 0)) + 1;
+  const code = `SGF-G-${1000 + nextGuardId}`;
   const newGuard = {
-    id: inMemory.guards.length + 1,
+    id: nextGuardId,
     name: req.body.full_name || req.body.name,
     full_name: req.body.full_name || req.body.name,
-    code: `SGF-G-${1000 + inMemory.guards.length + 1}`,
-    employee_id: `SGF-G-${1000 + inMemory.guards.length + 1}`,
+    code,
+    employee_code: code,
+    employee_id: code,
     mobile: req.body.mobile || "9820000000",
     category_name: req.body.designation || req.body.category_name || "Security Guard",
     designation: req.body.designation || req.body.category_name || "Security Guard",
     current_site_name: "Unassigned",
     current_site_id: null,
+    current_client_name: null,
+    current_client_id: null,
+    current_deployment_id: null,
     blood_group: req.body.blood_group || "B+",
-    kyc_status: "Verified",
-    pv_status: "Clear",
+    kyc_status: "verified",
+    pv_status: "clear",
     missing_docs: 0,
-    status: "Active",
+    status: (req.body.status || "active").toLowerCase(),
     is_active: 1,
+    created_at: new Date().toISOString(),
   };
   inMemory.guards.unshift(newGuard);
+  saveStore();
   return res.status(201).json(envelope(newGuard));
 });
 
 app.get("/api/v1/guards/:id", (req, res) => {
   const guard = inMemory.guards.find(g => g.id === Number(req.params.id)) || inMemory.guards[0];
+  const site = inMemory.sites.find(s => s.id === guard.current_site_id);
+  const client = site ? inMemory.clients.find(c => c.id === site.client_id) : null;
+  const dep = inMemory.deployments.find(d => d.guard_id === guard.id && (d.is_open || d.status === "active"));
   return res.json(envelope({
     ...guard,
+    employee_code: guard.employee_code || guard.code || guard.employee_id || `SGF-G-${1000 + guard.id}`,
+    current_site_name: site?.name || guard.current_site_name || "Unassigned",
+    current_site_id: site?.id || guard.current_site_id || null,
+    current_client_name: site?.client_name || client?.name || guard.current_client_name || null,
+    current_client_id: site?.client_id || client?.id || guard.current_client_id || null,
+    current_deployment_id: dep?.id || (guard.current_site_id ? 1 : null),
+    deployed_since: dep?.from_date || "2026-09-01",
+    status: guard.status ? guard.status.toLowerCase() : "active",
     aadhaar_masked: "XXXX-XXXX-1234",
     pan_number: "ABCDE1234F",
     bank_account_number: "98765432100",
@@ -1839,21 +2162,42 @@ app.get("/api/v1/guards/:id", (req, res) => {
 });
 
 app.put("/api/v1/guards/:id", (req, res) => {
-  const idx = inMemory.guards.findIndex(g => g.id === Number(req.params.id));
+  const id = Number(req.params.id);
+  const idx = inMemory.guards.findIndex(g => g.id === id);
   if (idx !== -1) {
     inMemory.guards[idx] = { ...inMemory.guards[idx], ...req.body };
+    saveStore();
     return res.json(envelope(inMemory.guards[idx]));
   }
-  return res.json(envelope(inMemory.guards[0]));
+  return res.status(404).json(envelope(null, {}, [{ message: "Guard not found" }]));
 });
 
 app.delete("/api/v1/guards/:id", (req, res) => {
-  inMemory.guards = inMemory.guards.filter(g => g.id !== Number(req.params.id));
+  const id = Number(req.params.id);
+  inMemory.guards = inMemory.guards.filter(g => g.id !== id);
+  inMemory.deployments = inMemory.deployments.filter(d => d.guard_id !== id);
+  saveStore();
   return res.json(envelope({ success: true }));
 });
 
 app.get("/api/v1/guards/:id/deployments", (req, res) => {
-  const deps = inMemory.deployments.filter(d => d.guard_id === Number(req.params.id));
+  const deps = inMemory.deployments
+    .filter(d => d.guard_id === Number(req.params.id))
+    .map(d => {
+      const site = inMemory.sites.find(s => s.id === d.site_id);
+      const client = inMemory.clients.find(c => c.id === (d.client_id || site?.client_id));
+      const shift = inMemory.shifts.find(s => s.id === d.shift_id);
+      return {
+        ...d,
+        site_name: d.site_name || site?.name || "Site",
+        client_name: d.client_name || site?.client_name || client?.name || "Client",
+        shift_name: d.shift_name || shift?.name || "Morning Shift (A)",
+        start_time: d.start_time || shift?.start_time || "07:00:00",
+        end_time: d.end_time || shift?.end_time || "15:00:00",
+        from_date: d.from_date || "2026-09-01",
+        is_open: d.is_open !== undefined ? d.is_open : (d.status === "Ended" ? 0 : 1),
+      };
+    });
   return res.json(listEnvelope(deps));
 });
 
@@ -1941,49 +2285,255 @@ app.delete("/api/v1/guard-kit/:id", (req, res) => {
 });
 
 app.get("/api/v1/deployments", (req, res) => {
-  return res.json(listEnvelope(inMemory.deployments));
+  let list = inMemory.deployments.map(d => {
+    const site = inMemory.sites.find(s => s.id === d.site_id);
+    const client = inMemory.clients.find(c => c.id === (d.client_id || site?.client_id));
+    const guard = inMemory.guards.find(g => g.id === d.guard_id);
+    const shift = inMemory.shifts.find(s => s.id === d.shift_id);
+    return {
+      ...d,
+      client_id: d.client_id || site?.client_id || client?.id || 1,
+      client_name: d.client_name || site?.client_name || client?.name || "Client",
+      guard_name: d.guard_name || guard?.name || "Guard",
+      employee_code: d.employee_code || guard?.employee_code || guard?.code || `SGF-G-${1000 + d.guard_id}`,
+      category_name: d.category_name || guard?.category_name || guard?.designation || "Security Guard",
+      site_name: d.site_name || site?.name || "Site",
+      shift_name: d.shift_name || shift?.name || "Morning Shift (A)",
+      start_time: d.start_time || shift?.start_time || "07:00:00",
+      end_time: d.end_time || shift?.end_time || "15:00:00",
+      from_date: d.from_date || "2026-09-01",
+      is_open: d.is_open !== undefined ? d.is_open : (d.status === "Ended" ? 0 : 1),
+    };
+  });
+
+  const clientId = getFilter(req, "client_id");
+  if (clientId) {
+    list = list.filter(d => String(d.client_id) === String(clientId));
+  }
+
+  const siteId = getFilter(req, "site_id");
+  if (siteId) {
+    list = list.filter(d => String(d.site_id) === String(siteId));
+  }
+
+  const guardId = getFilter(req, "guard_id");
+  if (guardId) {
+    list = list.filter(d => String(d.guard_id) === String(guardId));
+  }
+
+  const openFilter = getFilter(req, "open");
+  if (openFilter !== undefined && openFilter !== "") {
+    const wantOpen = openFilter === "1" || openFilter === "true" || openFilter === 1;
+    list = list.filter(d => wantOpen ? (d.is_open === 1 || d.is_open === true) : (!d.is_open || d.is_open === 0));
+  }
+
+  const reliefFilter = getFilter(req, "is_relief");
+  if (reliefFilter !== undefined && reliefFilter !== "") {
+    list = list.filter(d => String(d.is_relief) === String(reliefFilter));
+  }
+
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    list = list.filter(d =>
+      (d.guard_name && d.guard_name.toLowerCase().includes(q)) ||
+      (d.employee_code && d.employee_code.toLowerCase().includes(q)) ||
+      (d.site_name && d.site_name.toLowerCase().includes(q)) ||
+      (d.client_name && d.client_name.toLowerCase().includes(q))
+    );
+  }
+
+  const sort = req.query.sort || "from_date";
+  const dir = req.query.dir === "asc" ? 1 : -1;
+  list.sort((a, b) => {
+    let va = a[sort] ?? "";
+    let vb = b[sort] ?? "";
+    if (sort === "guard") { va = a.guard_name; vb = b.guard_name; }
+    if (sort === "site") { va = a.site_name; vb = b.site_name; }
+    if (typeof va === "string") va = va.toLowerCase();
+    if (typeof vb === "string") vb = vb.toLowerCase();
+    if (va < vb) return -1 * dir;
+    if (va > vb) return 1 * dir;
+    return 0;
+  });
+
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || 25;
+  const total = list.length;
+  const paginated = list.slice((page - 1) * perPage, page * perPage);
+
+  return res.json(listEnvelope(paginated, total, page, perPage));
 });
 
 app.post("/api/v1/deployments", (req, res) => {
+  const guardId = Number(req.body.guard_id);
+  const siteId = Number(req.body.site_id);
+  const shiftId = Number(req.body.shift_id) || 1;
+  const guard = inMemory.guards.find(g => g.id === guardId);
+  const site = inMemory.sites.find(s => s.id === siteId);
+  const shift = inMemory.shifts.find(s => s.id === shiftId);
+  const client = site ? inMemory.clients.find(c => c.id === site.client_id) : null;
+  const clientId = site?.client_id || client?.id || 1;
+  const clientName = site?.client_name || client?.name || "Client";
+
+  const nextDepId = Math.max(0, ...inMemory.deployments.map(d => d.id || 0)) + 1;
+  const fromDate = req.body.from_date || new Date().toISOString().split("T")[0];
+
   const newDep = {
-    id: inMemory.deployments.length + 1,
-    guard_id: Number(req.body.guard_id),
-    guard_name: inMemory.guards.find(g => g.id === Number(req.body.guard_id))?.name || "Guard",
-    site_id: Number(req.body.site_id),
-    site_name: inMemory.sites.find(s => s.id === Number(req.body.site_id))?.name || "Site",
-    shift_id: Number(req.body.shift_id) || 1,
-    shift_name: inMemory.shifts.find(s => s.id === Number(req.body.shift_id))?.name || "Morning Shift (A)",
-    status: "Active",
-    designation: req.body.designation || "Security Guard",
+    id: nextDepId,
+    guard_id: guardId,
+    guard_name: guard?.name || guard?.full_name || "Guard",
+    employee_code: guard?.employee_code || guard?.code || guard?.employee_id || `SGF-G-${1000 + guardId}`,
+    category_name: guard?.category_name || guard?.designation || "Security Guard",
+    site_id: siteId,
+    site_name: site?.name || "Site",
+    client_id: clientId,
+    client_name: clientName,
+    shift_id: shiftId,
+    shift_name: shift?.name || "Morning Shift (A)",
+    start_time: shift?.start_time || "07:00:00",
+    end_time: shift?.end_time || "15:00:00",
+    from_date: fromDate,
+    to_date: null,
+    is_open: 1,
+    is_relief: req.body.is_relief ? 1 : 0,
+    reason: req.body.reason || null,
+    status: "active",
+    designation: req.body.designation || guard?.designation || "Security Guard",
   };
   inMemory.deployments.unshift(newDep);
+
+  // Update guard's live posting
+  if (guard) {
+    guard.current_site_id = siteId;
+    guard.current_site_name = site?.name || "Site";
+    guard.current_client_id = clientId;
+    guard.current_client_name = clientName;
+    guard.current_deployment_id = newDep.id;
+    guard.deployed_since = fromDate;
+  }
+  if (site) {
+    site.deployed_count = (site.deployed_count || 0) + 1;
+  }
+  if (client) {
+    client.deployed_count = (client.deployed_count || 0) + 1;
+  }
+  saveStore();
   return res.status(201).json(envelope(newDep));
 });
 
 app.post("/api/v1/deployments/transfer", (req, res) => {
-  const { guard_id, to_site_id, to_shift_id } = req.body;
-  const dep = inMemory.deployments.find(d => d.guard_id === Number(guard_id) && d.status === "Active");
-  if (dep) {
-    if (to_site_id) {
-      dep.site_id = Number(to_site_id);
-      dep.site_name = inMemory.sites.find(s => s.id === Number(to_site_id))?.name || dep.site_name;
-    }
-    if (to_shift_id) {
-      dep.shift_id = Number(to_shift_id);
-      dep.shift_name = inMemory.shifts.find(s => s.id === Number(to_shift_id))?.name || dep.shift_name;
-    }
+  const guardId = Number(req.body.guard_id);
+  const toSiteId = Number(req.body.site_id || req.body.to_site_id);
+  const toShiftId = Number(req.body.shift_id || req.body.to_shift_id) || 1;
+  const fromDate = req.body.from_date || new Date().toISOString().split("T")[0];
+  const isRelief = req.body.is_relief ? 1 : 0;
+  const reason = req.body.reason || "Transferred";
+
+  const prevDep = inMemory.deployments.find(d => d.guard_id === guardId && (d.is_open || d.status === "active" || d.status === "Active"));
+  if (prevDep) {
+    prevDep.is_open = 0;
+    prevDep.status = "Ended";
+    prevDep.to_date = fromDate;
   }
-  return res.json(envelope({ success: true, message: "Guard transferred successfully" }));
+
+  const guard = inMemory.guards.find(g => g.id === guardId);
+  const site = inMemory.sites.find(s => s.id === toSiteId);
+  const shift = inMemory.shifts.find(s => s.id === toShiftId);
+  const client = site ? inMemory.clients.find(c => c.id === site.client_id) : null;
+  const clientId = site?.client_id || client?.id || 1;
+  const clientName = site?.client_name || client?.name || "Client";
+
+  const nextDepId = Math.max(0, ...inMemory.deployments.map(d => d.id || 0)) + 1;
+  const newDep = {
+    id: nextDepId,
+    previous_id: prevDep?.id || null,
+    previous_site_name: prevDep?.site_name || null,
+    guard_id: guardId,
+    guard_name: guard?.name || "Guard",
+    employee_code: guard?.employee_code || guard?.code || `SGF-G-${1000 + guardId}`,
+    category_name: guard?.category_name || "Security Guard",
+    site_id: toSiteId,
+    site_name: site?.name || "Site",
+    client_id: clientId,
+    client_name: clientName,
+    shift_id: toShiftId,
+    shift_name: shift?.name || "Morning Shift (A)",
+    start_time: shift?.start_time || "07:00:00",
+    end_time: shift?.end_time || "15:00:00",
+    from_date: fromDate,
+    to_date: null,
+    is_open: 1,
+    is_relief: isRelief,
+    reason,
+    status: "active",
+  };
+  inMemory.deployments.unshift(newDep);
+
+  if (guard) {
+    guard.current_site_id = toSiteId;
+    guard.current_site_name = site?.name || "Site";
+    guard.current_client_id = clientId;
+    guard.current_client_name = clientName;
+    guard.current_deployment_id = newDep.id;
+    guard.deployed_since = fromDate;
+  }
+  saveStore();
+  return res.json(envelope({ success: true, message: "Guard transferred successfully", deployment: newDep }));
 });
 
 app.post("/api/v1/deployments/:id/end", (req, res) => {
   const id = Number(req.params.id);
   const dep = inMemory.deployments.find(d => d.id === id);
   if (dep) {
+    dep.is_open = 0;
     dep.status = "Ended";
-    dep.end_date = new Date().toISOString().split("T")[0];
+    dep.to_date = req.body.to_date || new Date().toISOString().split("T")[0];
+    dep.end_reason = req.body.reason || null;
+    const guard = inMemory.guards.find(g => g.id === dep.guard_id);
+    if (guard && guard.current_deployment_id === id) {
+      guard.current_site_id = null;
+      guard.current_site_name = "Unassigned";
+      guard.current_client_id = null;
+      guard.current_client_name = null;
+      guard.current_deployment_id = null;
+    }
+    const site = inMemory.sites.find(s => s.id === dep.site_id);
+    if (site && site.deployed_count > 0) site.deployed_count--;
+    const client = inMemory.clients.find(c => c.id === dep.client_id);
+    if (client && client.deployed_count > 0) client.deployed_count--;
   }
+  saveStore();
   return res.json(envelope({ success: true, message: "Deployment ended" }));
+});
+
+app.delete("/api/v1/deployments/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const dep = inMemory.deployments.find(d => d.id === id);
+  if (dep) {
+    const guard = inMemory.guards.find(g => g.id === dep.guard_id);
+    if (guard && guard.current_deployment_id === id) {
+      const prev = inMemory.deployments.find(d => d.guard_id === guard.id && d.id !== id);
+      if (prev) {
+        prev.is_open = 1;
+        prev.status = "active";
+        prev.to_date = null;
+        guard.current_site_id = prev.site_id;
+        guard.current_site_name = prev.site_name;
+        guard.current_client_id = prev.client_id;
+        guard.current_client_name = prev.client_name;
+        guard.current_deployment_id = prev.id;
+      } else {
+        guard.current_site_id = null;
+        guard.current_site_name = "Unassigned";
+        guard.current_client_id = null;
+        guard.current_client_name = null;
+        guard.current_deployment_id = null;
+      }
+    }
+    inMemory.deployments = inMemory.deployments.filter(d => d.id !== id);
+  }
+  saveStore();
+  return res.json(envelope({ success: true }));
 });
 
 app.put("/api/v1/deployments/:id", (req, res) => {
@@ -1991,6 +2541,7 @@ app.put("/api/v1/deployments/:id", (req, res) => {
   const idx = inMemory.deployments.findIndex(d => d.id === id);
   if (idx !== -1) {
     inMemory.deployments[idx] = { ...inMemory.deployments[idx], ...req.body };
+    saveStore();
     return res.json(envelope(inMemory.deployments[idx]));
   }
   return res.json(envelope({ id, ...req.body }));
@@ -2813,9 +3364,9 @@ app.get("/api/v1/patrol/stats", (req, res) => {
 // CHECKPOINTS CRUD
 app.get("/api/v1/checkpoints", (req, res) => {
   let items = [...inMemory.checkpoints];
-  const siteId = req.query["filter[site_id]"] || req.query.site_id;
-  const tagType = req.query["filter[tag_type]"] || req.query.tag_type;
-  const isActive = req.query["filter[is_active]"] || req.query.is_active;
+  const siteId = getFilter(req, "site_id");
+  const tagType = getFilter(req, "tag_type");
+  const isActive = getFilter(req, "is_active");
 
   if (siteId) {
     items = items.filter(c => String(c.site_id) === String(siteId));
