@@ -435,6 +435,11 @@ async function saveStore() {
       site_requirements: inMemory.site_requirements,
       shifts: inMemory.shifts,
       masterItems: masterItems,
+      attendance: inMemory.attendance,
+      rosters: inMemory.rosters,
+      leave_requests: inMemory.leave_requests,
+      manpower_requests: inMemory.manpower_requests,
+      payroll_runs: inMemory.payroll_runs,
     };
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(toSave, null, 2), "utf-8");
@@ -463,6 +468,19 @@ async function saveStore() {
   }
 }
 
+function purgeDemoRecordsForSatyajeet() {
+  if (Array.isArray(inMemory.attendance)) {
+    inMemory.attendance = inMemory.attendance.filter(r => {
+      const isSatyajeet = Number(r.guard_id) === 17 || (r.guard_name && r.guard_name.toLowerCase().includes("satyajeet"));
+      if (isSatyajeet) {
+        const isDemo = r.check_in_at?.includes("06:55:12") || r.duty_date < "2026-10-27" || (r.check_in_selfie_url && r.check_in_selfie_url.includes("unsplash"));
+        return !isDemo && r.source === "manual";
+      }
+      return true;
+    });
+  }
+}
+
 async function syncFromSupabase(force = false) {
   if (!supabase || isSaving) return;
   if (!force && Date.now() - lastSupabaseSync < 3000) return;
@@ -484,6 +502,14 @@ async function syncFromSupabase(force = false) {
         if (Array.isArray(v.site_requirements)) inMemory.site_requirements = v.site_requirements;
         if (Array.isArray(v.shifts)) inMemory.shifts = v.shifts;
         if (Array.isArray(v.masterItems)) masterItems.splice(0, masterItems.length, ...v.masterItems);
+        if (Array.isArray(v.attendance) && v.attendance.length > 0) {
+          inMemory.attendance = v.attendance;
+          purgeDemoRecordsForSatyajeet();
+        }
+        if (Array.isArray(v.rosters) && v.rosters.length > 0) inMemory.rosters = v.rosters;
+        if (Array.isArray(v.leave_requests) && v.leave_requests.length > 0) inMemory.leave_requests = v.leave_requests;
+        if (Array.isArray(v.manpower_requests) && v.manpower_requests.length > 0) inMemory.manpower_requests = v.manpower_requests;
+        if (Array.isArray(v.payroll_runs) && v.payroll_runs.length > 0) inMemory.payroll_runs = v.payroll_runs;
         recalculateRequiredGuards();
         lastSupabaseSync = Date.now();
         try {
@@ -511,6 +537,14 @@ function loadStore() {
       if (Array.isArray(data.site_requirements) && data.site_requirements.length) inMemory.site_requirements = data.site_requirements;
       if (Array.isArray(data.shifts) && data.shifts.length) inMemory.shifts = data.shifts;
       if (Array.isArray(data.masterItems) && data.masterItems.length) masterItems.splice(0, masterItems.length, ...data.masterItems);
+      if (Array.isArray(data.attendance) && data.attendance.length) {
+        inMemory.attendance = data.attendance;
+        purgeDemoRecordsForSatyajeet();
+      }
+      if (Array.isArray(data.rosters) && data.rosters.length) inMemory.rosters = data.rosters;
+      if (Array.isArray(data.leave_requests) && data.leave_requests.length) inMemory.leave_requests = data.leave_requests;
+      if (Array.isArray(data.manpower_requests) && data.manpower_requests.length) inMemory.manpower_requests = data.manpower_requests;
+      if (Array.isArray(data.payroll_runs) && data.payroll_runs.length) inMemory.payroll_runs = data.payroll_runs;
       recalculateRequiredGuards();
     }
   } catch (err) {
@@ -535,7 +569,10 @@ function initAttendanceData() {
     }
   });
 
-  // Generate 14 days of realistic attendance logs
+  const existingManual = (inMemory.attendance || []).filter(r => r.source === "manual");
+
+  // Generate 14 days of realistic attendance logs ONLY for the initial demo guards (id <= 10)
+  const demoGuards = guards.filter(g => g.id <= 10);
   const records = [];
   let recordId = 1;
 
@@ -544,7 +581,7 @@ function initAttendanceData() {
     const dateStr = d.toISOString().split("T")[0];
     const isToday = dayOffset === 0;
 
-    guards.forEach((g, gIdx) => {
+    demoGuards.forEach((g, gIdx) => {
       const site = sites.find(s => s.id === g.current_site_id) || sites[gIdx % sites.length];
       const shift = shifts[gIdx % 3]; // Morning, Afternoon, Night
 
@@ -659,7 +696,8 @@ function initAttendanceData() {
     });
   }
 
-  inMemory.attendance = records;
+  inMemory.attendance = [...records, ...existingManual];
+  purgeDemoRecordsForSatyajeet();
 
   // Leave Requests
   inMemory.leave_requests = [
@@ -2845,50 +2883,44 @@ app.delete("/api/v1/shifts/:id", async (req, res) => {
 // ATTENDANCE, ROSTERS & LEAVE MANAGEMENT
 // ============================================================================
 app.get("/api/v1/attendance", (req, res) => {
+  let list = [...inMemory.attendance];
+  const siteId = getFilter(req, "site_id");
+  const guardId = getFilter(req, "guard_id");
+  const shiftId = getFilter(req, "shift_id");
+  const status = getFilter(req, "status");
+  const source = getFilter(req, "source");
+  const capturedOffline = getFilter(req, "captured_offline");
+  const from = getFilter(req, "from");
+  const to = getFilter(req, "to");
+  const dutyDate = getFilter(req, "duty_date");
+
+  if (siteId) list = list.filter(r => String(r.site_id) === String(siteId));
+  if (guardId) list = list.filter(r => String(r.guard_id) === String(guardId));
+  if (shiftId) list = list.filter(r => String(r.shift_id) === String(shiftId));
+  if (status) list = list.filter(r => r.status === status);
+  if (source) list = list.filter(r => r.source === source);
+  if (capturedOffline === "1") list = list.filter(r => r.captured_offline);
+  if (dutyDate) list = list.filter(r => r.duty_date === dutyDate);
+  if (from) list = list.filter(r => r.duty_date >= from);
+  if (to) list = list.filter(r => r.duty_date <= to);
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    list = list.filter(r =>
+      (r.guard_name && r.guard_name.toLowerCase().includes(q)) ||
+      (r.employee_code && r.employee_code.toLowerCase().includes(q)) ||
+      (r.site_name && r.site_name.toLowerCase().includes(q)) ||
+      (r.correction_reason && r.correction_reason.toLowerCase().includes(q))
+    );
+  }
+
   if (req.query.export === "xlsx") {
-    const rows = inMemory.attendance.map(a =>
+    const rows = list.map(a =>
       `${a.duty_date},"${a.guard_name}","${a.employee_code}","${a.site_name}","${a.shift_name}",${a.status},${a.check_in_at || ""},${a.check_out_at || ""},${a.late_min},${a.worked_min},${a.ot_min},${a.source}`
     );
     const csv = "Date,Guard,Employee Code,Site,Shift,Status,Check In,Check Out,Late Min,Worked Min,OT Min,Source\n" + rows.join("\n");
     res.setHeader("Content-Disposition", 'attachment; filename="attendance-records.xlsx"');
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     return res.send(csv);
-  }
-
-  let list = [...inMemory.attendance];
-
-  if (req.query.site_id) {
-    list = list.filter(r => String(r.site_id) === String(req.query.site_id));
-  }
-  if (req.query.guard_id) {
-    list = list.filter(r => String(r.guard_id) === String(req.query.guard_id));
-  }
-  if (req.query.shift_id) {
-    list = list.filter(r => String(r.shift_id) === String(req.query.shift_id));
-  }
-  if (req.query.status) {
-    list = list.filter(r => r.status === req.query.status);
-  }
-  if (req.query.source) {
-    list = list.filter(r => r.source === req.query.source);
-  }
-  if (req.query.captured_offline === "1") {
-    list = list.filter(r => r.captured_offline);
-  }
-  if (req.query.from) {
-    list = list.filter(r => r.duty_date >= req.query.from);
-  }
-  if (req.query.to) {
-    list = list.filter(r => r.duty_date <= req.query.to);
-  }
-  if (req.query.search) {
-    const q = req.query.search.toLowerCase();
-    list = list.filter(r =>
-      r.guard_name.toLowerCase().includes(q) ||
-      r.employee_code.toLowerCase().includes(q) ||
-      r.site_name.toLowerCase().includes(q) ||
-      (r.correction_reason && r.correction_reason.toLowerCase().includes(q))
-    );
   }
 
   const sort = req.query.sort || "duty_date";
@@ -2914,61 +2946,145 @@ app.get("/api/v1/attendance", (req, res) => {
 
 app.get("/api/v1/attendance/daily", (req, res) => {
   const todayStr = new Date().toISOString().split("T")[0];
-  const dateStr = req.query.date || todayStr;
-  let items = inMemory.attendance.filter(r => r.duty_date === dateStr);
-  if (req.query.site_id) {
-    items = items.filter(r => String(r.site_id) === String(req.query.site_id));
-  }
+  const dateStr = getFilter(req, "date") || req.query.date || todayStr;
+  const siteId = getFilter(req, "site_id") || req.query.site_id;
+  const shiftId = getFilter(req, "shift_id") || req.query.shift_id;
+  const statusFilter = getFilter(req, "status") || req.query.status;
 
-  // If no records for this date, dynamically synthesize duties from deployments
-  if (items.length === 0) {
-    items = inMemory.deployments.map((dep, idx) => {
-      const g = inMemory.guards.find(x => x.id === dep.guard_id) || inMemory.guards[idx % inMemory.guards.length];
-      const s = inMemory.sites.find(x => x.id === dep.site_id) || inMemory.sites[0];
-      const sh = inMemory.shifts.find(x => x.id === dep.shift_id) || inMemory.shifts[0];
-      const isPresent = idx < 8;
-      const isLate = idx === 8;
-      const status = isPresent ? "present" : isLate ? "late" : "absent";
-      return {
-        id: 1000 + idx,
-        key: `daily-${dateStr}-${dep.id}-${g.id}`,
-        attendance_id: isPresent || isLate ? 1000 + idx : null,
-        guard_id: g.id,
-        guard_name: g.name,
-        employee_code: g.employee_id || g.code,
-        check_in_selfie_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-        is_relief: false,
+  // Active deployments on this date:
+  let activeDeps = inMemory.deployments.filter(d =>
+    d.status === "active" &&
+    (!d.from_date || d.from_date <= dateStr) &&
+    (!d.to_date || d.to_date >= dateStr)
+  );
+  if (siteId) activeDeps = activeDeps.filter(d => String(d.site_id) === String(siteId));
+  if (shiftId) activeDeps = activeDeps.filter(d => String(d.shift_id) === String(shiftId));
+
+  const items = [];
+  const processedGuardIds = new Set();
+
+  for (const dep of activeDeps) {
+    const g = inMemory.guards.find(x => x.id === dep.guard_id) || { id: dep.guard_id, name: dep.guard_name, code: dep.employee_code };
+    const s = inMemory.sites.find(x => x.id === dep.site_id) || { id: dep.site_id, name: dep.site_name };
+    const sh = inMemory.shifts.find(x => x.id === dep.shift_id) || { id: dep.shift_id, name: dep.shift_name, start_time: dep.start_time || "07:00:00", end_time: dep.end_time || "15:00:00" };
+
+    processedGuardIds.add(dep.guard_id);
+
+    const att = inMemory.attendance.find(a => a.guard_id === dep.guard_id && a.duty_date === dateStr);
+    if (att) {
+      items.push({
+        id: att.id,
+        key: `daily-${dateStr}-${dep.id}-${dep.guard_id}`,
+        attendance_id: att.id,
+        guard_id: dep.guard_id,
+        guard_name: att.guard_name || dep.guard_name || g.name,
+        employee_code: att.employee_code || dep.employee_code || g.employee_code || g.code,
+        check_in_selfie_url: att.check_in_selfie_url || null,
+        is_relief: !!att.is_relief,
+        replaces_guard_name: att.replaces_guard_name || null,
+        site_id: att.site_id || dep.site_id,
+        site_name: att.site_name || dep.site_name || s.name,
+        shift_id: att.shift_id || dep.shift_id,
+        shift_name: att.shift_name || dep.shift_name || sh.name,
+        shift_start_at: att.shift_start_at || `${dateStr}T${sh.start_time || "07:00:00"}+05:30`,
+        shift_end_at: att.shift_end_at || `${dateStr}T${sh.end_time || "15:00:00"}+05:30`,
+        state: att.status || att.state || "present",
+        status: att.status || att.state || "present",
+        corrected_at: att.corrected_at || null,
+        correction_reason: att.correction_reason || null,
+        captured_offline: !!att.captured_offline,
+        check_in_at: att.check_in_at || null,
+        check_in_distance_m: att.check_in_distance_m ?? null,
+        check_out_at: att.check_out_at || null,
+        late_min: att.late_min || 0,
+        worked_min: att.worked_min || 0,
+        ot_min: att.ot_min || 0,
+      });
+    } else {
+      const isFuture = dateStr > todayStr;
+      const isToday = dateStr === todayStr;
+      const state = isFuture ? "upcoming" : (isToday ? "not_checked_in" : "absent");
+
+      items.push({
+        id: 10000 + dep.id,
+        key: `daily-${dateStr}-${dep.id}-${dep.guard_id}`,
+        attendance_id: null,
+        guard_id: dep.guard_id,
+        guard_name: dep.guard_name || g.name,
+        employee_code: dep.employee_code || g.employee_code || g.code,
+        check_in_selfie_url: null,
+        is_relief: !!dep.is_relief,
         replaces_guard_name: null,
-        site_id: s.id,
-        site_name: s.name,
-        shift_id: sh.id,
-        shift_name: sh.name,
-        shift_start_at: `${dateStr}T${sh.start_time}+05:30`,
-        shift_end_at: `${dateStr}T${sh.end_time}+05:30`,
-        state: status,
-        status: status,
+        site_id: dep.site_id,
+        site_name: dep.site_name || s.name,
+        shift_id: dep.shift_id,
+        shift_name: dep.shift_name || sh.name,
+        shift_start_at: `${dateStr}T${sh.start_time || "07:00:00"}+05:30`,
+        shift_end_at: `${dateStr}T${sh.end_time || "15:00:00"}+05:30`,
+        state: state,
+        status: state,
         corrected_at: null,
         correction_reason: null,
         captured_offline: false,
-        check_in_at: isPresent || isLate ? `${dateStr}T${isLate ? "07:22:00" : "06:55:00"}+05:30` : null,
-        check_in_distance_m: isPresent || isLate ? 12 : null,
-        check_out_at: isPresent ? `${dateStr}T15:05:00+05:30` : null,
-        late_min: isLate ? 22 : 0,
-        worked_min: isPresent ? 480 : isLate ? 458 : 0,
-        ot_min: idx === 0 ? 30 : 0,
-      };
+        check_in_at: null,
+        check_in_distance_m: null,
+        check_out_at: null,
+        late_min: 0,
+        worked_min: 0,
+        ot_min: 0,
+      });
+    }
+  }
+
+  // Also include any attendance records on that date for guards who aren't in active deployments (or relief guards)
+  const extraAtts = inMemory.attendance.filter(a => a.duty_date === dateStr && !processedGuardIds.has(a.guard_id));
+  for (const att of extraAtts) {
+    if (siteId && String(att.site_id) !== String(siteId)) continue;
+    if (shiftId && String(att.shift_id) !== String(shiftId)) continue;
+    items.push({
+      id: att.id,
+      key: `daily-${dateStr}-${att.site_id}-${att.guard_id}`,
+      attendance_id: att.id,
+      guard_id: att.guard_id,
+      guard_name: att.guard_name,
+      employee_code: att.employee_code,
+      check_in_selfie_url: att.check_in_selfie_url || null,
+      is_relief: !!att.is_relief,
+      replaces_guard_name: att.replaces_guard_name || null,
+      site_id: att.site_id,
+      site_name: att.site_name,
+      shift_id: att.shift_id,
+      shift_name: att.shift_name,
+      shift_start_at: att.shift_start_at,
+      shift_end_at: att.shift_end_at,
+      state: att.status || "present",
+      status: att.status || "present",
+      corrected_at: att.corrected_at || null,
+      correction_reason: att.correction_reason || null,
+      captured_offline: !!att.captured_offline,
+      check_in_at: att.check_in_at || null,
+      check_in_distance_m: att.check_in_distance_m ?? null,
+      check_out_at: att.check_out_at || null,
+      late_min: att.late_min || 0,
+      worked_min: att.worked_min || 0,
+      ot_min: att.ot_min || 0,
     });
   }
 
+  let filteredItems = items;
+  if (statusFilter) {
+    filteredItems = items.filter(r => r.status === statusFilter || r.state === statusFilter);
+  }
+
   if (req.query.export === "xlsx") {
-    const rows = items.map(a => `${dateStr},"${a.guard_name}","${a.employee_code}","${a.site_name}","${a.shift_name}",${a.status},${a.check_in_at || ""},${a.check_out_at || ""},${a.late_min},${a.worked_min},${a.ot_min}`);
+    const rows = filteredItems.map(a => `${dateStr},"${a.guard_name}","${a.employee_code}","${a.site_name}","${a.shift_name}",${a.status},${a.check_in_at || ""},${a.check_out_at || ""},${a.late_min},${a.worked_min},${a.ot_min}`);
     const csv = "Date,Guard,Employee Code,Site,Shift,Status,Check In,Check Out,Late Min,Worked Min,OT Min\n" + rows.join("\n");
     res.setHeader("Content-Disposition", `attachment; filename="attendance-${dateStr}.xlsx"`);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     return res.send(csv);
   }
 
-  let present = 0, late = 0, half_day = 0, absent = 0, leave = 0, weekly_off = 0, upcoming = 0;
+  let present = 0, late = 0, half_day = 0, absent = 0, leave = 0, weekly_off = 0, upcoming = 0, not_checked_in = 0;
   items.forEach(item => {
     const st = item.status || item.state;
     if (st === "present") present++;
@@ -2978,10 +3094,11 @@ app.get("/api/v1/attendance/daily", (req, res) => {
     else if (st === "leave") leave++;
     else if (st === "weekly_off") weekly_off++;
     else if (st === "upcoming") upcoming++;
+    else if (st === "not_checked_in") not_checked_in++;
   });
 
   return res.json({
-    data: items,
+    data: filteredItems,
     meta: {
       total: items.length,
       counts: {
@@ -2992,8 +3109,8 @@ app.get("/api/v1/attendance/daily", (req, res) => {
         leave,
         weekly_off,
         upcoming,
-        not_checked_in: 0,
-        not_marked: 0,
+        not_checked_in,
+        not_marked: not_checked_in,
       },
     },
     errors: [],
@@ -3002,13 +3119,16 @@ app.get("/api/v1/attendance/daily", (req, res) => {
 
 app.get("/api/v1/attendance/register", (req, res) => {
   const currentMonth = new Date().toISOString().slice(0, 7);
-  const monthStr = req.query.month || currentMonth;
+  const todayStr = new Date().toISOString().split("T")[0];
+  const monthStr = getFilter(req, "month") || req.query.month || currentMonth;
+  const siteId = getFilter(req, "site_id") || req.query.site_id;
   const [y, m] = monthStr.split("-").map(Number);
   const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
 
   let guards = [...inMemory.guards];
-  if (req.query.site_id) {
-    guards = guards.filter(g => String(g.current_site_id) === String(req.query.site_id));
+  if (siteId) {
+    const siteGuardIds = new Set(inMemory.deployments.filter(d => String(d.site_id) === String(siteId)).map(d => d.guard_id));
+    guards = guards.filter(g => String(g.current_site_id) === String(siteId) || siteGuardIds.has(g.id));
   }
 
   const rows = guards.map(g => {
@@ -3021,19 +3141,35 @@ app.get("/api/v1/attendance/register", (req, res) => {
       const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 
       const record = inMemory.attendance.find(a => a.guard_id === g.id && a.duty_date === dateStr);
-      let status = "P";
+      let status = "";
       if (record) {
-        status = record.status_code || (record.status === "present" ? "P" : record.status === "late" ? "L" : record.status === "absent" ? "A" : record.status === "leave" ? "LV" : "WO");
+        status = record.status_code || (record.status === "present" ? "P" : record.status === "late" ? "L" : record.status === "absent" ? "A" : record.status === "leave" ? "LV" : record.status === "weekly_off" ? "WO" : record.status === "half_day" ? "HD" : "P");
         if (record.ot_min) otMin += record.ot_min;
-      } else if (dayOfWeek === 0) {
-        status = "WO";
       } else {
-        const hash = (g.id * 17 + d * 31) % 100;
-        if (hash < 82) status = "P";
-        else if (hash < 90) status = "L";
-        else if (hash < 94) status = "WO";
-        else if (hash < 97) status = "LV";
-        else status = "A";
+        if (g.id > 10) {
+          if (dateStr > todayStr) {
+            status = "";
+          } else if (g.deployed_since && dateStr < g.deployed_since) {
+            status = "";
+          } else if (dayOfWeek === 0) {
+            status = "WO";
+          } else {
+            status = "";
+          }
+        } else {
+          if (dateStr > todayStr) {
+            status = "";
+          } else if (dayOfWeek === 0) {
+            status = "WO";
+          } else {
+            const hash = (g.id * 17 + d * 31) % 100;
+            if (hash < 82) status = "P";
+            else if (hash < 90) status = "L";
+            else if (hash < 94) status = "WO";
+            else if (hash < 97) status = "LV";
+            else status = "A";
+          }
+        }
       }
 
       days[dayKey] = status;
@@ -3051,7 +3187,7 @@ app.get("/api/v1/attendance/register", (req, res) => {
       guard_id: g.id,
       guard_name: g.name,
       employee_code: g.employee_id || g.code,
-      site_name: g.current_site_name || "Lodha Bellissimo",
+      site_name: g.current_site_name || "Unassigned",
       days,
       totals: {
         P: countP,
@@ -3060,7 +3196,7 @@ app.get("/api/v1/attendance/register", (req, res) => {
         A: countA,
         LV: countLV,
         WO: countWO,
-        ot_min: otMin || 180,
+        ot_min: otMin,
         paid_days: paidDays,
       },
     };
@@ -3099,57 +3235,75 @@ app.get("/api/v1/attendance/stats", (req, res) => {
   const todayStr = new Date().toISOString().split("T")[0];
   const todayRecords = inMemory.attendance.filter(r => r.duty_date === todayStr);
 
-  const total = todayRecords.length || 10;
-  const present = todayRecords.filter(r => r.status === "present" || r.status === "late").length || 9;
-  const late = todayRecords.filter(r => r.status === "late").length || 2;
-  const absent = todayRecords.filter(r => r.status === "absent").length || 1;
-  const leave = todayRecords.filter(r => r.status === "leave").length || 1;
-  const relief = todayRecords.filter(r => r.is_relief).length || 1;
-  const otMin = todayRecords.reduce((acc, r) => acc + (r.ot_min || 0), 0) || 270;
+  const activeDeployments = inMemory.deployments.filter(d => d.status === "active");
+  const total = Math.max(activeDeployments.length, todayRecords.length, 1);
+  const present = todayRecords.filter(r => r.status === "present" || r.status === "late" || r.status === "half_day").length;
+  const late = todayRecords.filter(r => r.status === "late").length;
+  const absent = todayRecords.filter(r => r.status === "absent").length;
+  const leave = todayRecords.filter(r => r.status === "leave").length;
+  const relief = todayRecords.filter(r => r.is_relief).length;
+  const otMin = todayRecords.reduce((acc, r) => acc + (r.ot_min || 0), 0);
 
-  const rate = Number(((present / total) * 100).toFixed(1));
+  const rate = total > 0 ? Number(((present / total) * 100).toFixed(1)) : 100;
 
   const shiftCoverage = inMemory.shifts.map(s => {
+    const shiftDeps = activeDeployments.filter(d => d.shift_id === s.id);
+    const reqGuards = shiftDeps.length > 0 ? shiftDeps.length : (s.id === 1 ? 12 : s.id === 2 ? 8 : 4);
+    const depGuards = shiftDeps.length > 0 ? shiftDeps.length : reqGuards;
+    const shiftPresent = todayRecords.filter(r => r.shift_id === s.id && (r.status === "present" || r.status === "late")).length;
+    const actualPresent = shiftDeps.length > 0 ? shiftPresent : depGuards;
+    const fillRate = reqGuards > 0 ? Number(Math.min(100, (actualPresent / reqGuards) * 100).toFixed(1)) : 100;
+
     return {
       shift_id: s.id,
       name: s.name,
       code: s.code,
-      timing: `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}`,
-      required: s.id === 1 ? 12 : s.id === 2 ? 8 : 4,
-      deployed: s.id === 1 ? 12 : s.id === 2 ? 8 : 4,
-      present: s.id === 1 ? 12 : s.id === 2 ? 7 : 4,
-      fill_rate: s.id === 1 ? 100 : s.id === 2 ? 87.5 : 100,
+      timing: `${(s.start_time || "07:00").slice(0, 5)} – ${(s.end_time || "15:00").slice(0, 5)}`,
+      required: reqGuards,
+      deployed: depGuards,
+      present: actualPresent,
+      fill_rate: fillRate,
     };
   });
 
   const siteHealth = inMemory.sites.map(s => {
+    const siteDeps = activeDeployments.filter(d => d.site_id === s.id);
+    const reqGuards = s.required_guards || s.required_count || siteDeps.length || 1;
+    const depGuards = siteDeps.length;
+    const sitePresent = todayRecords.filter(r => r.site_id === s.id && (r.status === "present" || r.status === "late")).length;
+    const fillRate = reqGuards > 0 ? Math.min(100, Math.round((depGuards / reqGuards) * 100)) : 100;
+
     return {
       site_id: s.id,
       name: s.name,
       client_name: s.client_name,
-      required: s.required_guards,
-      deployed: s.deployed_count,
-      on_duty: s.deployed_count,
-      geofence_m: s.geofence_radius_meters,
-      fill_rate_percent: 100,
-      status: "optimal",
+      required: reqGuards,
+      deployed: depGuards,
+      on_duty: sitePresent || depGuards,
+      geofence_m: s.geofence_radius_meters || 200,
+      fill_rate_percent: fillRate,
+      status: fillRate >= 90 ? "optimal" : fillRate >= 60 ? "warning" : "critical",
     };
   });
 
-  const recentPunches = inMemory.attendance.slice(0, 8).map(r => ({
-    id: r.id,
-    guard_id: r.guard_id,
-    guard_name: r.guard_name,
-    employee_code: r.employee_code,
-    site_name: r.site_name,
-    shift_name: r.shift_name,
-    punch_type: r.check_out_at ? "Out" : "In",
-    punch_time: r.check_out_at ? r.check_out_at.slice(11, 16) : r.check_in_at ? r.check_in_at.slice(11, 16) : "07:00",
-    distance_m: r.check_in_distance_m || 12,
-    status: r.status,
-    selfie_url: r.check_in_selfie_url,
-    is_relief: r.is_relief,
-  }));
+  const recentPunches = inMemory.attendance
+    .filter(r => r.check_in_at || r.check_out_at)
+    .sort((a, b) => new Date(b.check_in_at || b.duty_date).getTime() - new Date(a.check_in_at || a.duty_date).getTime())
+    .slice(0, 10)
+    .map(r => ({
+      id: r.id,
+      guard_id: r.guard_id,
+      guard_name: r.guard_name,
+      employee_code: r.employee_code,
+      site_name: r.site_name,
+      shift_name: r.shift_name,
+      punch_type: r.check_out_at ? "Out" : "In",
+      punch_time: r.check_out_at ? r.check_out_at.slice(11, 16) : r.check_in_at ? r.check_in_at.slice(11, 16) : "07:00",
+      distance_m: r.check_in_distance_m || 12,
+      status: r.status,
+      selfie_url: r.check_in_selfie_url,
+      is_relief: r.is_relief,
+    }));
 
   return res.json(envelope({
     overall_rate_percent: rate,
@@ -3167,7 +3321,7 @@ app.get("/api/v1/attendance/stats", (req, res) => {
   }));
 });
 
-app.post("/api/v1/attendance/manual", (req, res) => {
+app.post("/api/v1/attendance/manual", async (req, res) => {
   const { guard_id, site_id, shift_id, duty_date, status, check_in_at, check_out_at, is_relief, replaces_guard_id, reason } = req.body;
   const guard = inMemory.guards.find(g => g.id === Number(guard_id)) || inMemory.guards[0];
   const site = inMemory.sites.find(s => s.id === Number(site_id)) || inMemory.sites[0];
@@ -3177,23 +3331,47 @@ app.post("/api/v1/attendance/manual", (req, res) => {
   const statusCodeMap = { present: "P", late: "L", half_day: "HD", absent: "A", leave: "LV", weekly_off: "WO" };
   const statusCode = statusCodeMap[status] || "P";
 
+  let workedMin = 0;
+  let otMin = 0;
+  let lateMin = status === "late" ? 20 : 0;
+  if (check_in_at && check_out_at) {
+    const diffMs = new Date(check_out_at).getTime() - new Date(check_in_at).getTime();
+    workedMin = Math.max(0, Math.floor(diffMs / 60000));
+    otMin = Math.max(0, workedMin - 480);
+  } else if (status === "present") {
+    workedMin = 480;
+  } else if (status === "late") {
+    workedMin = 460;
+    lateMin = 20;
+  } else if (status === "half_day") {
+    workedMin = 240;
+  }
+
   let record = inMemory.attendance.find(a => a.guard_id === guard.id && a.duty_date === duty_date);
   if (record) {
+    record.site_id = site.id;
+    record.site_name = site.name;
+    record.shift_id = shift.id;
+    record.shift_name = shift.name;
     record.status = status;
     record.status_code = statusCode;
     record.state = status;
-    record.check_in_at = check_in_at || record.check_in_at;
+    record.check_in_at = check_in_at || record.check_in_at || `${duty_date}T07:00:00+05:30`;
     record.check_out_at = check_out_at || record.check_out_at;
+    record.worked_min = workedMin || record.worked_min || 480;
+    record.late_min = lateMin;
+    record.ot_min = otMin;
     record.is_relief = !!is_relief;
     record.replaces_guard_id = replaces_guard_id ? Number(replaces_guard_id) : null;
     record.replaces_guard_name = replacedGuard ? replacedGuard.name : null;
     record.correction_reason = reason;
     record.source = "manual";
   } else {
+    const nextId = Math.max(0, ...inMemory.attendance.map(a => a.id || 0)) + 1;
     record = {
-      id: inMemory.attendance.length + 1,
+      id: nextId,
       key: `att-${duty_date}-${guard.id}`,
-      attendance_id: inMemory.attendance.length + 1,
+      attendance_id: nextId,
       guard_id: guard.id,
       guard_name: guard.name,
       employee_code: guard.employee_id || guard.code,
@@ -3201,22 +3379,22 @@ app.post("/api/v1/attendance/manual", (req, res) => {
       site_name: site.name,
       shift_id: shift.id,
       shift_name: shift.name,
-      shift_code: shift.code,
-      shift_start_at: `${duty_date}T${shift.start_time}+05:30`,
-      shift_end_at: `${duty_date}T${shift.end_time}+05:30`,
+      shift_code: shift.code || "A",
+      shift_start_at: `${duty_date}T${shift.start_time || "07:00:00"}+05:30`,
+      shift_end_at: `${duty_date}T${shift.end_time || "15:00:00"}+05:30`,
       duty_date: duty_date,
       status: status,
       status_code: statusCode,
       state: status,
-      check_in_at: check_in_at || `${duty_date}T07:00:00+05:30`,
-      check_in_selfie_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+      check_in_at: check_in_at || `${duty_date}T${shift.start_time || "07:00:00"}+05:30`,
+      check_in_selfie_url: null,
       check_in_distance_m: 10,
       check_out_at: check_out_at || null,
-      check_out_selfie_url: check_out_at ? "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80" : null,
+      check_out_selfie_url: null,
       check_out_distance_m: check_out_at ? 10 : null,
-      late_min: status === "late" ? 20 : 0,
-      worked_min: status === "present" ? 480 : 0,
-      ot_min: 0,
+      late_min: lateMin,
+      worked_min: workedMin,
+      ot_min: otMin,
       source: "manual",
       captured_offline: false,
       is_relief: !!is_relief,
@@ -3224,7 +3402,7 @@ app.post("/api/v1/attendance/manual", (req, res) => {
       replaces_guard_name: replacedGuard ? replacedGuard.name : null,
       is_corrected: false,
       correction_reason: reason,
-      corrected_by_name: "Rajesh Sharma",
+      corrected_by_name: "Operations Manager",
       corrected_at: new Date().toISOString(),
       device_id: "Portal Web Manual Entry",
       synced_at: new Date().toISOString(),
@@ -3232,10 +3410,11 @@ app.post("/api/v1/attendance/manual", (req, res) => {
     inMemory.attendance.unshift(record);
   }
 
+  await saveStore();
   return res.json(envelope(record));
 });
 
-app.post("/api/v1/attendance/:id/correct", (req, res) => {
+app.post("/api/v1/attendance/:id/correct", async (req, res) => {
   const id = Number(req.params.id);
   const record = inMemory.attendance.find(a => a.id === id);
   if (!record) {
@@ -3259,7 +3438,7 @@ app.post("/api/v1/attendance/:id/correct", (req, res) => {
   }
   record.is_corrected = true;
   record.correction_reason = reason;
-  record.corrected_by_name = "Rajesh Sharma";
+  record.corrected_by_name = "Operations Manager";
   record.corrected_at = new Date().toISOString();
 
   if (record.check_in_at && record.check_out_at) {
@@ -3269,31 +3448,32 @@ app.post("/api/v1/attendance/:id/correct", (req, res) => {
     record.ot_min = Math.max(0, diffMins - 480);
   }
 
+  await saveStore();
   return res.json(envelope(record));
 });
 
 app.get("/api/v1/location/live", (req, res) => {
   let list = inMemory.live_locations || [];
-  if (req.query.site_id) {
-    list = list.filter(l => String(l.site_id) === String(req.query.site_id));
+  const siteId = getFilter(req, "site_id");
+  if (siteId) {
+    list = list.filter(l => String(l.site_id) === String(siteId));
   }
   return res.json(envelope(list));
 });
 
 app.get("/api/v1/leave-requests", (req, res) => {
   let list = inMemory.leave_requests || [];
-  if (req.query.site_id) {
-    list = list.filter(r => String(r.site_id) === String(req.query.site_id));
-  }
-  if (req.query.status) {
-    list = list.filter(r => r.status === req.query.status);
-  }
-  if (req.query.search) {
-    const q = req.query.search.toLowerCase();
+  const siteId = getFilter(req, "site_id");
+  const status = getFilter(req, "status");
+  const search = (req.query.search || "").toLowerCase();
+
+  if (siteId) list = list.filter(r => String(r.site_id) === String(siteId));
+  if (status) list = list.filter(r => (r.status || "").toLowerCase() === status.toLowerCase());
+  if (search) {
     list = list.filter(r =>
-      r.guard_name.toLowerCase().includes(q) ||
-      r.employee_code.toLowerCase().includes(q) ||
-      r.reason.toLowerCase().includes(q)
+      (r.guard_name && r.guard_name.toLowerCase().includes(search)) ||
+      (r.employee_code && r.employee_code.toLowerCase().includes(search)) ||
+      (r.reason && r.reason.toLowerCase().includes(search))
     );
   }
 
@@ -3314,39 +3494,117 @@ app.get("/api/v1/leave-requests", (req, res) => {
   return res.json(listEnvelope(paged, total, page, perPage));
 });
 
-app.post("/api/v1/leave-requests/:id/approve", (req, res) => {
+app.post("/api/v1/leave-requests/:id/approve", async (req, res) => {
   const id = Number(req.params.id);
   const item = inMemory.leave_requests.find(r => r.id === id);
   if (!item) {
     return res.status(404).json(envelope(null, {}, [{ message: "Leave request not found" }]));
   }
   item.status = "approved";
-  item.decided_by_name = "Rajesh Sharma";
+  item.decided_by_name = "Operations Manager";
   item.decision_note = req.body.note || "Approved by Operations Manager";
 
-  return res.json(envelope({ message: "Leave approved", attendance_days: item.days || 1 }));
+  // Systematically mark attendance as leave for those dates
+  const fromD = new Date(item.from_date);
+  const toD = new Date(item.to_date || item.from_date);
+  let cur = new Date(fromD);
+  let daysMarked = 0;
+
+  while (cur <= toD) {
+    const curStr = cur.toISOString().split("T")[0];
+    let att = inMemory.attendance.find(a => a.guard_id === item.guard_id && a.duty_date === curStr);
+    if (att) {
+      att.status = "leave";
+      att.status_code = "LV";
+      att.state = "leave";
+      att.worked_min = 0;
+      att.check_in_at = null;
+      att.check_out_at = null;
+    } else {
+      const nextId = Math.max(0, ...inMemory.attendance.map(a => a.id || 0)) + 1;
+      inMemory.attendance.push({
+        id: nextId,
+        key: `att-${curStr}-${item.guard_id}`,
+        attendance_id: nextId,
+        guard_id: item.guard_id,
+        guard_name: item.guard_name,
+        employee_code: item.employee_code,
+        site_id: item.site_id,
+        site_name: item.site_name,
+        shift_id: 1,
+        shift_name: "Morning Shift (A)",
+        duty_date: curStr,
+        status: "leave",
+        status_code: "LV",
+        state: "leave",
+        check_in_at: null,
+        check_out_at: null,
+        worked_min: 0,
+        late_min: 0,
+        ot_min: 0,
+        source: "system",
+      });
+    }
+    daysMarked++;
+    cur = new Date(cur.getTime() + 86400000);
+  }
+
+  await saveStore();
+  return res.json(envelope({ message: "Leave approved", attendance_days: daysMarked }));
 });
 
-app.post("/api/v1/leave-requests/:id/reject", (req, res) => {
+app.post("/api/v1/leave-requests/:id/reject", async (req, res) => {
   const id = Number(req.params.id);
   const item = inMemory.leave_requests.find(r => r.id === id);
   if (!item) {
     return res.status(404).json(envelope(null, {}, [{ message: "Leave request not found" }]));
   }
   item.status = "rejected";
-  item.decided_by_name = "Rajesh Sharma";
+  item.decided_by_name = "Operations Manager";
   item.decision_note = req.body.note || "Rejected due to manpower constraints";
 
+  await saveStore();
   return res.json(envelope({ message: "Leave rejected" }));
 });
 
-
 app.get("/api/v1/rosters", (req, res) => {
-  return res.json(listEnvelope(inMemory.rosters));
+  let list = [...inMemory.rosters];
+  const siteId = getFilter(req, "site_id");
+  const shiftId = getFilter(req, "shift_id");
+  const status = getFilter(req, "status");
+  const isRelief = getFilter(req, "is_relief");
+  const from = getFilter(req, "from");
+  const to = getFilter(req, "to");
+  const dutyDate = getFilter(req, "duty_date");
+  const search = (req.query.search || "").toLowerCase();
+
+  if (siteId) list = list.filter(r => String(r.site_id) === String(siteId));
+  if (shiftId) list = list.filter(r => String(r.shift_id) === String(shiftId));
+  if (status) list = list.filter(r => r.status === status);
+  if (isRelief !== undefined) list = list.filter(r => isRelief === "1" ? r.is_relief : !r.is_relief);
+  if (dutyDate) list = list.filter(r => r.duty_date === dutyDate);
+  if (from) list = list.filter(r => r.duty_date >= from);
+  if (to) list = list.filter(r => r.duty_date <= to);
+  if (search) {
+    list = list.filter(r =>
+      (r.guard_name && r.guard_name.toLowerCase().includes(search)) ||
+      (r.employee_code && r.employee_code.toLowerCase().includes(search)) ||
+      (r.site_name && r.site_name.toLowerCase().includes(search))
+    );
+  }
+
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || 25;
+  const total = list.length;
+  const start = (page - 1) * perPage;
+  const paged = list.slice(start, start + perPage);
+
+  return res.json(listEnvelope(paged, total, page, perPage));
 });
 
 app.get("/api/v1/rosters/week", (req, res) => {
-  const start = req.query.start || "2026-10-19";
+  const start = getFilter(req, "start") || req.query.start || "2026-10-19";
+  const siteFilter = getFilter(req, "site_id") || req.query.site_id;
   const startDate = new Date(start);
   const days = [];
   for (let i = 0; i < 7; i++) {
@@ -3354,29 +3612,75 @@ app.get("/api/v1/rosters/week", (req, res) => {
     days.push(d.toISOString().split("T")[0]);
   }
 
-  const sites = inMemory.sites.map(s => {
+  let sitesToUse = inMemory.sites;
+  if (siteFilter) {
+    sitesToUse = sitesToUse.filter(s => String(s.id) === String(siteFilter));
+  }
+
+  const sites = sitesToUse.map(s => {
     const daysData = {};
-    days.forEach((dayStr, idx) => {
-      const g = inMemory.guards[idx % inMemory.guards.length];
-      daysData[dayStr] = [
-        {
-          roster_id: 100 + s.id * 10 + idx,
-          guard_id: g.id,
-          guard_name: g.name,
-          shift_name: "Morning Shift (A)",
-          shift_code: "A",
-          start_time: "07:00",
-          end_time: "15:00",
-          attendance_status: idx % 6 === 0 ? "WO" : "P",
-          is_relief: false,
-        },
-      ];
+    let totalDuties = 0;
+
+    const siteDeps = inMemory.deployments.filter(d => d.site_id === s.id && d.status === "active");
+
+    days.forEach(dayStr => {
+      const rostersForDay = inMemory.rosters.filter(r => r.site_id === s.id && r.duty_date === dayStr);
+
+      const dayChips = [];
+      const rosteredGuardIds = new Set();
+
+      for (const r of rostersForDay) {
+        rosteredGuardIds.add(r.guard_id);
+        const att = inMemory.attendance.find(a => a.guard_id === r.guard_id && a.duty_date === dayStr);
+        const attCode = att ? (att.status_code || (att.status === "present" ? "P" : att.status === "late" ? "L" : att.status === "absent" ? "A" : att.status === "leave" ? "LV" : "WO")) : (r.attendance_status || null);
+        dayChips.push({
+          roster_id: r.id,
+          guard_id: r.guard_id,
+          guard_name: r.guard_name,
+          employee_code: r.employee_code,
+          shift_name: r.shift_name,
+          shift_code: r.shift_code || "A",
+          start_time: r.start_time || "07:00",
+          end_time: r.end_time || "15:00",
+          attendance_code: attCode,
+          status: r.status || "scheduled",
+          is_relief: !!r.is_relief,
+          weekly_off: !!r.weekly_off,
+          note: r.note || null,
+        });
+      }
+
+      for (const dep of siteDeps) {
+        if (!rosteredGuardIds.has(dep.guard_id)) {
+          const att = inMemory.attendance.find(a => a.guard_id === dep.guard_id && a.duty_date === dayStr);
+          const attCode = att ? (att.status_code || (att.status === "present" ? "P" : att.status === "late" ? "L" : att.status === "absent" ? "A" : att.status === "leave" ? "LV" : "WO")) : null;
+          dayChips.push({
+            roster_id: 10000 + s.id * 100 + dep.guard_id,
+            guard_id: dep.guard_id,
+            guard_name: dep.guard_name,
+            employee_code: dep.employee_code,
+            shift_name: dep.shift_name || "Morning Shift (A)",
+            shift_code: dep.shift_name?.includes("Night") ? "C" : dep.shift_name?.includes("Afternoon") ? "B" : "A",
+            start_time: (dep.start_time || "07:00").slice(0, 5),
+            end_time: (dep.end_time || "15:00").slice(0, 5),
+            attendance_code: attCode,
+            status: "scheduled",
+            is_relief: !!dep.is_relief,
+            weekly_off: false,
+            note: null,
+          });
+        }
+      }
+
+      totalDuties += dayChips.length;
+      daysData[dayStr] = dayChips;
     });
+
     return {
       site_id: s.id,
       site_name: s.name,
       client_name: s.client_name,
-      duties: 7,
+      duties: totalDuties,
       days: daysData,
     };
   });
@@ -3389,70 +3693,219 @@ app.get("/api/v1/rosters/week", (req, res) => {
   }));
 });
 
-app.post("/api/v1/rosters/generate", (req, res) => {
-  return res.json(envelope({ message: "Roster generated for all deployed sites" }));
+app.post("/api/v1/rosters/generate", async (req, res) => {
+  const { from, to, site_id, shift_id, weekly_off = [] } = req.body;
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+  let created = 0;
+  let weeklyOffCount = 0;
+  const guardsSet = new Set();
+
+  let targetDeployments = inMemory.deployments.filter(d => d.status === "active");
+  if (site_id) targetDeployments = targetDeployments.filter(d => d.site_id === Number(site_id));
+  if (shift_id) targetDeployments = targetDeployments.filter(d => d.shift_id === Number(shift_id));
+
+  let cur = new Date(fromDate);
+  while (cur <= toDate) {
+    const curStr = cur.toISOString().split("T")[0];
+    const dayOfWeek = cur.getDay(); // 0 is Sunday
+    const isWO = Array.isArray(weekly_off) && weekly_off.includes(dayOfWeek);
+
+    for (const dep of targetDeployments) {
+      guardsSet.add(dep.guard_id);
+      const exists = inMemory.rosters.find(r => r.guard_id === dep.guard_id && r.duty_date === curStr);
+      if (!exists) {
+        const nextId = Math.max(0, ...inMemory.rosters.map(r => r.id || 0)) + 1;
+        inMemory.rosters.push({
+          id: nextId,
+          guard_id: dep.guard_id,
+          guard_name: dep.guard_name,
+          employee_code: dep.employee_code,
+          site_id: dep.site_id,
+          site_name: dep.site_name,
+          shift_id: dep.shift_id,
+          shift_name: dep.shift_name,
+          shift_code: dep.shift_name?.includes("Night") ? "C" : dep.shift_name?.includes("Afternoon") ? "B" : "A",
+          shift_time: `${(dep.start_time || "07:00").slice(0, 5)}–${(dep.end_time || "15:00").slice(0, 5)}`,
+          start_time: (dep.start_time || "07:00").slice(0, 5),
+          end_time: (dep.end_time || "15:00").slice(0, 5),
+          duty_date: curStr,
+          status: "scheduled",
+          attendance_status: isWO ? "WO" : null,
+          weekly_off: isWO,
+          is_relief: false,
+        });
+        created++;
+        if (isWO) weeklyOffCount++;
+      }
+    }
+    cur = new Date(cur.getTime() + 86400000);
+  }
+
+  await saveStore();
+  return res.json(envelope({
+    created,
+    guards: guardsSet.size,
+    weekly_off: weeklyOffCount,
+    skipped: 0,
+    no_shift: 0,
+  }));
 });
 
-app.post("/api/v1/rosters", (req, res) => {
+app.post("/api/v1/rosters", async (req, res) => {
+  const { site_id, shift_id, guard_id, duty_date, is_relief, replaces_guard_id, note } = req.body;
+  const guard = inMemory.guards.find(g => g.id === Number(guard_id)) || inMemory.guards[0];
+  const site = inMemory.sites.find(s => s.id === Number(site_id)) || inMemory.sites[0];
+  const shift = inMemory.shifts.find(s => s.id === Number(shift_id)) || inMemory.shifts[0];
+  const replacedGuard = replaces_guard_id ? inMemory.guards.find(g => g.id === Number(replaces_guard_id)) : null;
+
+  const nextId = Math.max(0, ...inMemory.rosters.map(r => r.id || 0)) + 1;
   const newRoster = {
-    id: inMemory.rosters.length + 1,
-    guard_id: Number(req.body.guard_id) || 1,
-    guard_name: inMemory.guards.find(g => g.id === Number(req.body.guard_id))?.name || "Guard",
-    site_id: Number(req.body.site_id) || 1,
-    site_name: inMemory.sites.find(s => s.id === Number(req.body.site_id))?.name || "Site",
-    shift_name: req.body.shift_name || "Morning Shift (A)",
-    shift_code: req.body.shift_code || "A",
-    start_time: req.body.start_time || "07:00",
-    end_time: req.body.end_time || "15:00",
-    duty_date: req.body.duty_date || new Date().toISOString().split("T")[0],
-    attendance_status: "P",
-    is_relief: false,
+    id: nextId,
+    guard_id: guard.id,
+    guard_name: guard.name,
+    employee_code: guard.employee_code || guard.code,
+    site_id: site.id,
+    site_name: site.name,
+    shift_id: shift.id,
+    shift_name: shift.name,
+    shift_code: shift.code || "A",
+    shift_time: `${(shift.start_time || "07:00").slice(0, 5)}–${(shift.end_time || "15:00").slice(0, 5)}`,
+    start_time: (shift.start_time || "07:00").slice(0, 5),
+    end_time: (shift.end_time || "15:00").slice(0, 5),
+    duty_date: duty_date || new Date().toISOString().split("T")[0],
+    status: "scheduled",
+    is_relief: !!is_relief,
+    replaces_guard_id: replaces_guard_id ? Number(replaces_guard_id) : null,
+    replaces_guard_name: replacedGuard ? replacedGuard.name : null,
+    note: note || null,
   };
   inMemory.rosters.push(newRoster);
+  await saveStore();
   return res.status(201).json(envelope(newRoster));
 });
 
-app.delete("/api/v1/rosters/:id", (req, res) => {
+app.delete("/api/v1/rosters/:id", async (req, res) => {
   const id = Number(req.params.id);
   inMemory.rosters = inMemory.rosters.filter(r => r.id !== id);
+  await saveStore();
   return res.json(envelope({ success: true }));
 });
 
-app.post("/api/v1/rosters/:id/relief", (req, res) => {
-  return res.json(envelope({ message: "Relief guard assigned successfully" }));
+app.post("/api/v1/rosters/:id/relief", async (req, res) => {
+  const id = Number(req.params.id);
+  const { guard_id, note } = req.body;
+  const originalDuty = inMemory.rosters.find(r => r.id === id);
+  const reliefGuard = inMemory.guards.find(g => g.id === Number(guard_id));
+  if (originalDuty) {
+    originalDuty.status = "cancelled";
+    originalDuty.note = note || `Relief assigned: ${reliefGuard?.name || "Relief guard"}`;
+    if (reliefGuard) {
+      const nextId = Math.max(0, ...inMemory.rosters.map(r => r.id || 0)) + 1;
+      inMemory.rosters.push({
+        id: nextId,
+        guard_id: reliefGuard.id,
+        guard_name: reliefGuard.name,
+        employee_code: reliefGuard.employee_code || reliefGuard.code,
+        site_id: originalDuty.site_id,
+        site_name: originalDuty.site_name,
+        shift_id: originalDuty.shift_id,
+        shift_name: originalDuty.shift_name,
+        shift_code: originalDuty.shift_code,
+        shift_time: originalDuty.shift_time,
+        start_time: originalDuty.start_time,
+        end_time: originalDuty.end_time,
+        duty_date: originalDuty.duty_date,
+        status: "scheduled",
+        is_relief: true,
+        replaces_guard_id: originalDuty.guard_id,
+        replaces_guard_name: originalDuty.guard_name,
+        note: note || `Relief for ${originalDuty.guard_name}`,
+      });
+    }
+    await saveStore();
+  }
+  return res.json(envelope({ message: "Relief assigned" }));
 });
 
 app.get("/api/v1/manpower-requests", (req, res) => {
-  return res.json(listEnvelope(inMemory.manpower_requests));
+  let list = inMemory.manpower_requests || [];
+  const status = getFilter(req, "status");
+  const siteId = getFilter(req, "site_id");
+  const source = getFilter(req, "source");
+  const search = (req.query.search || "").toLowerCase();
+
+  if (status) list = list.filter(r => (r.status || "").toLowerCase() === status.toLowerCase());
+  if (siteId) list = list.filter(r => String(r.site_id) === String(siteId));
+  if (source) list = list.filter(r => (r.source || "").toLowerCase() === source.toLowerCase());
+  if (search) {
+    list = list.filter(r =>
+      (r.site_name && r.site_name.toLowerCase().includes(search)) ||
+      (r.client_name && r.client_name.toLowerCase().includes(search)) ||
+      (r.reason && r.reason.toLowerCase().includes(search))
+    );
+  }
+
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || 25;
+  const total = list.length;
+  const start = (page - 1) * perPage;
+  const paged = list.slice(start, start + perPage);
+
+  return res.json(listEnvelope(paged, total, page, perPage));
 });
 
-app.post("/api/v1/manpower-requests", (req, res) => {
+app.post("/api/v1/manpower-requests", async (req, res) => {
+  const siteId = Number(req.body.site_id) || 1;
+  const site = inMemory.sites.find(s => s.id === siteId) || inMemory.sites[0];
+  const client = inMemory.clients.find(c => c.id === site?.client_id) || inMemory.clients[0];
+  const cat = masterItems.find(m => m.type === "guard_category" && m.id === Number(req.body.guard_category_id));
+  const shift = inMemory.shifts.find(s => s.id === Number(req.body.shift_id));
+
+  const nextId = Math.max(0, ...(inMemory.manpower_requests || []).map(m => m.id || 0)) + 1;
   const newReq = {
-    id: inMemory.manpower_requests.length + 1,
-    client_id: Number(req.body.client_id) || 1,
-    client_name: inMemory.clients.find(c => c.id === Number(req.body.client_id))?.name || "Client",
-    site_name: req.body.site_name || "Lodha Bellissimo",
-    request_type: req.body.request_type || "Extra Guards",
-    guard_category: req.body.guard_category || "Senior Guard",
-    headcount: Number(req.body.headcount) || 2,
+    id: nextId,
+    client_id: client?.id || 1,
+    client_name: client?.name || "Client",
+    site_id: siteId,
+    site_name: site?.name || "Site",
+    guard_category_id: req.body.guard_category_id ? Number(req.body.guard_category_id) : null,
+    guard_category_name: cat?.name || "Security Guard",
+    shift_id: shift?.id || null,
+    shift_name: shift?.name || "Any Shift",
+    headcount: Number(req.body.headcount) || 1,
     from_date: req.body.from_date || new Date().toISOString().split("T")[0],
-    to_date: req.body.to_date || new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+    to_date: req.body.to_date || null,
     reason: req.body.reason || "Additional requirement",
-    status: "Pending",
+    source: "supervisor",
+    raised_by_name: "Operations Supervisor",
+    created_at: new Date().toISOString(),
+    status: "open",
+    decision_note: null,
   };
   inMemory.manpower_requests.unshift(newReq);
+  await saveStore();
   return res.status(201).json(envelope(newReq));
 });
 
-app.post("/api/v1/manpower-requests/:id/:action", (req, res) => {
+app.post("/api/v1/manpower-requests/:id/:action", async (req, res) => {
   const id = Number(req.params.id);
-  const action = req.params.action; // approve, reject, cancel
+  const action = req.params.action; // approve, fulfil, reject
   const item = inMemory.manpower_requests.find(m => m.id === id);
-  if (item) {
-    item.status = action === "approve" ? "Approved" : action === "reject" ? "Rejected" : "Cancelled";
-    return res.json(envelope(item));
+  if (!item) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Manpower request not found" }]));
   }
-  return res.json(envelope({ id, status: action }));
+
+  if (action === "approve") {
+    item.status = "approved";
+  } else if (action === "fulfil" || action === "fulfill") {
+    item.status = "fulfilled";
+  } else if (action === "reject") {
+    item.status = "rejected";
+  }
+  item.decision_note = req.body.note || `Request ${action}ed`;
+  await saveStore();
+  return res.json(envelope(item));
 });
 
 app.post("/api/v1/portal/manpower-requests", (req, res) => {
@@ -4904,18 +5357,38 @@ app.delete("/api/v1/payroll-runs/:id", (req, res) => {
 
 app.get("/api/v1/payroll-runs/:id", (req, res) => {
   const run = inMemory.payroll_runs.find(r => r.id === Number(req.params.id)) || inMemory.payroll_runs[0];
+  const period = run?.period || "2026-10";
+
   return res.json(envelope({
     ...run,
-    slips: inMemory.guards.map(g => ({
-      guard_id: g.id,
-      guard_name: g.name,
-      designation: g.designation,
-      duty_days: 26,
-      gross_paise: 2850000,
-      deductions_paise: 380000,
-      net_paise: 2470000,
-      status: "computed",
-    })),
+    slips: inMemory.guards.map(g => {
+      const guardRecords = inMemory.attendance.filter(a => a.guard_id === g.id && (a.duty_date || "").startsWith(period));
+      let dutyDays = 0;
+      if (guardRecords.length > 0) {
+        guardRecords.forEach(a => {
+          if (a.status === "present" || a.status === "late") dutyDays += 1;
+          else if (a.status === "half_day") dutyDays += 0.5;
+          else if (a.status === "weekly_off" || a.status === "leave") dutyDays += 1;
+        });
+      } else {
+        dutyDays = g.id <= 10 ? 26 : 0;
+      }
+
+      const gross = Math.round(dutyDays * 110000);
+      const deductions = Math.round(gross * 0.12);
+      const net = gross - deductions;
+
+      return {
+        guard_id: g.id,
+        guard_name: g.name,
+        designation: g.designation || "Security Guard",
+        duty_days: dutyDays,
+        gross_paise: gross,
+        deductions_paise: deductions,
+        net_paise: net,
+        status: "computed",
+      };
+    }),
   }));
 });
 
