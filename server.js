@@ -127,10 +127,10 @@ const inMemory = {
 
   // 5. Shifts
   shifts: [
-    { id: 1, name: "Morning Shift (A)", code: "A", start_time: "07:00:00", end_time: "15:00:00", duration_hours: 8.0, shift_type: "Day", is_active: 1 },
-    { id: 2, name: "Afternoon Shift (B)", code: "B", start_time: "15:00:00", end_time: "23:00:00", duration_hours: 8.0, shift_type: "Day", is_active: 1 },
-    { id: 3, name: "Night Shift (C)", code: "C", start_time: "23:00:00", end_time: "07:00:00", duration_hours: 8.0, shift_type: "Night", is_active: 1 },
-    { id: 4, name: "General Office Shift", code: "G", start_time: "09:00:00", end_time: "18:00:00", duration_hours: 9.0, shift_type: "Day", is_active: 1 },
+    { id: 1, name: "Morning Shift (A)", code: "A", start_time: "07:00:00", end_time: "15:00:00", duration_hours: 8.0, shift_type: "Day", is_active: 1, site_id: null },
+    { id: 2, name: "Afternoon Shift (B)", code: "B", start_time: "15:00:00", end_time: "23:00:00", duration_hours: 8.0, shift_type: "Day", is_active: 1, site_id: null },
+    { id: 3, name: "Night Shift (C)", code: "C", start_time: "23:00:00", end_time: "07:00:00", duration_hours: 8.0, shift_type: "Night", is_active: 1, site_id: null },
+    { id: 4, name: "General Office Shift", code: "G", start_time: "09:00:00", end_time: "18:00:00", duration_hours: 9.0, shift_type: "Day", is_active: 1, site_id: null },
   ],
 
   // 6. Incidents
@@ -300,11 +300,11 @@ const inMemory = {
   ],
 
   site_requirements: [
-    { id: 1, site_id: 1, site_name: "Lodha Bellissimo", shift_name: "Morning Shift (A)", guard_category: "Senior Guard", headcount: 4 },
-    { id: 2, site_id: 1, site_name: "Lodha Bellissimo", shift_name: "Morning Shift (A)", guard_category: "Security Guard", headcount: 8 },
-    { id: 3, site_id: 2, site_name: "HDFC Bank BKC Complex", shift_name: "Morning Shift (A)", guard_category: "Head Guard", headcount: 2 },
-    { id: 4, site_id: 2, site_name: "HDFC Bank BKC Complex", shift_name: "Morning Shift (A)", guard_category: "Armed Guard", headcount: 4 },
-    { id: 5, site_id: 2, site_name: "HDFC Bank BKC Complex", shift_name: "Morning Shift (A)", guard_category: "Security Guard", headcount: 12 },
+    { id: 1, site_id: 1, site_name: "Lodha Bellissimo", client_id: 1, client_name: "Lodha Group", guard_category_id: 2, guard_category: "Senior Guard", category_name: "Senior Guard", shift_id: 1, shift_name: "Morning Shift (A)", start_time: "07:00:00", end_time: "15:00:00", headcount: 4, is_current: true },
+    { id: 2, site_id: 1, site_name: "Lodha Bellissimo", client_id: 1, client_name: "Lodha Group", guard_category_id: 1, guard_category: "Security Guard", category_name: "Security Guard", shift_id: 1, shift_name: "Morning Shift (A)", start_time: "07:00:00", end_time: "15:00:00", headcount: 8, is_current: true },
+    { id: 3, site_id: 2, site_name: "HDFC Bank BKC Complex", client_id: 2, client_name: "HDFC Bank Ltd", guard_category_id: 3, guard_category: "Head Guard", category_name: "Head Guard", shift_id: 1, shift_name: "Morning Shift (A)", start_time: "07:00:00", end_time: "15:00:00", headcount: 2, is_current: true },
+    { id: 4, site_id: 2, site_name: "HDFC Bank BKC Complex", client_id: 2, client_name: "HDFC Bank Ltd", guard_category_id: 4, guard_category: "Armed Guard", category_name: "Armed Guard", shift_id: 1, shift_name: "Morning Shift (A)", start_time: "07:00:00", end_time: "15:00:00", headcount: 4, is_current: true },
+    { id: 5, site_id: 2, site_name: "HDFC Bank BKC Complex", client_id: 2, client_name: "HDFC Bank Ltd", guard_category_id: 1, guard_category: "Security Guard", category_name: "Security Guard", shift_id: 1, shift_name: "Morning Shift (A)", start_time: "07:00:00", end_time: "15:00:00", headcount: 12, is_current: true },
   ],
 
   // 15. Complaints
@@ -397,6 +397,29 @@ const inMemory = {
   ],
 };
 
+function recalculateRequiredGuards(siteId = null, clientId = null) {
+  const sitesToUpdate = siteId ? inMemory.sites.filter(s => s.id === Number(siteId)) : inMemory.sites;
+  for (const site of sitesToUpdate) {
+    const siteReqs = (inMemory.site_requirements || []).filter(r => Number(r.site_id) === Number(site.id));
+    if (siteReqs.length > 0) {
+      const total = siteReqs.reduce((sum, r) => sum + (Number(r.headcount) || 0), 0);
+      site.required_count = total;
+      site.required_guards = total;
+    } else if (siteId) {
+      site.required_count = 0;
+      site.required_guards = 0;
+    }
+  }
+
+  const clientsToUpdate = clientId ? inMemory.clients.filter(c => c.id === Number(clientId)) : inMemory.clients;
+  for (const client of clientsToUpdate) {
+    const sitesOfClient = inMemory.sites.filter(s => Number(s.client_id) === Number(client.id));
+    const total = sitesOfClient.reduce((sum, s) => sum + (Number(s.required_count) || Number(s.required_guards) || 0), 0);
+    client.required_count = total;
+    client.required_guards = total;
+  }
+}
+
 let lastSupabaseSync = 0;
 let isSaving = false;
 let isSyncing = false;
@@ -409,6 +432,9 @@ async function saveStore() {
       sites: inMemory.sites,
       guards: inMemory.guards,
       deployments: inMemory.deployments,
+      site_requirements: inMemory.site_requirements,
+      shifts: inMemory.shifts,
+      masterItems: masterItems,
     };
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(toSave, null, 2), "utf-8");
@@ -455,6 +481,10 @@ async function syncFromSupabase(force = false) {
         if (Array.isArray(v.sites)) inMemory.sites = v.sites;
         if (Array.isArray(v.guards)) inMemory.guards = v.guards;
         if (Array.isArray(v.deployments)) inMemory.deployments = v.deployments;
+        if (Array.isArray(v.site_requirements)) inMemory.site_requirements = v.site_requirements;
+        if (Array.isArray(v.shifts)) inMemory.shifts = v.shifts;
+        if (Array.isArray(v.masterItems)) masterItems.splice(0, masterItems.length, ...v.masterItems);
+        recalculateRequiredGuards();
         lastSupabaseSync = Date.now();
         try {
           fs.writeFileSync(DB_FILE, JSON.stringify(v, null, 2), "utf-8");
@@ -478,6 +508,10 @@ function loadStore() {
       if (Array.isArray(data.sites) && data.sites.length) inMemory.sites = data.sites;
       if (Array.isArray(data.guards) && data.guards.length) inMemory.guards = data.guards;
       if (Array.isArray(data.deployments) && data.deployments.length) inMemory.deployments = data.deployments;
+      if (Array.isArray(data.site_requirements) && data.site_requirements.length) inMemory.site_requirements = data.site_requirements;
+      if (Array.isArray(data.shifts) && data.shifts.length) inMemory.shifts = data.shifts;
+      if (Array.isArray(data.masterItems) && data.masterItems.length) masterItems.splice(0, masterItems.length, ...data.masterItems);
+      recalculateRequiredGuards();
     }
   } catch (err) {
     // Non-fatal
@@ -1510,11 +1544,17 @@ app.get("/api/v1/clients", (req, res) => {
   let list = inMemory.clients.map(c => {
     const clientSites = inMemory.sites.filter(s => s.client_id === c.id);
     const clientDeps = inMemory.deployments.filter(d => d.client_id === c.id && (d.is_open || d.status === "active" || d.status === "Active"));
+    const clientReqsTotal = clientSites.reduce((sum, s) => {
+      const sReqs = (inMemory.site_requirements || []).filter(r => Number(r.site_id) === Number(s.id));
+      const sReqCount = sReqs.length > 0 ? sReqs.reduce((rs, r) => rs + (Number(r.headcount) || 0), 0) : (s.required_count !== undefined ? s.required_count : (s.required_guards || 0));
+      return sum + sReqCount;
+    }, 0);
     return {
       ...c,
       sites_count: clientSites.length || c.sites_count || 0,
       deployed_count: clientDeps.length || c.deployed_count || 0,
-      required_count: c.required_count !== undefined ? c.required_count : (c.required_guards || 0),
+      required_count: clientReqsTotal,
+      required_guards: clientReqsTotal,
       active_contracts: c.active_contracts !== undefined ? c.active_contracts : 1,
     };
   });
@@ -1657,12 +1697,18 @@ app.get("/api/v1/clients/:id", async (req, res) => {
   }
   const sites = inMemory.sites.filter(s => s.client_id === client.id);
   const clientDeps = inMemory.deployments.filter(d => d.client_id === client.id);
+  const clientReqsTotal = sites.reduce((sum, s) => {
+    const sReqs = (inMemory.site_requirements || []).filter(r => Number(r.site_id) === Number(s.id));
+    const sReqCount = sReqs.length > 0 ? sReqs.reduce((rs, r) => rs + (Number(r.headcount) || 0), 0) : (s.required_count !== undefined ? s.required_count : (s.required_guards || 0));
+    return sum + sReqCount;
+  }, 0);
   return res.json(envelope({
     ...client,
     sites,
     sites_count: sites.length,
     deployed_count: clientDeps.filter(d => d.is_open || d.status === "active").length,
-    required_count: client.required_count !== undefined ? client.required_count : (client.required_guards || 0),
+    required_count: clientReqsTotal,
+    required_guards: clientReqsTotal,
     active_contracts: client.active_contracts !== undefined ? client.active_contracts : 1,
     contracts_count: 1,
     active_invoices_count: 1,
@@ -1750,11 +1796,14 @@ app.get("/api/v1/sites", (req, res) => {
   let list = inMemory.sites.map(s => {
     const client = inMemory.clients.find(c => c.id === s.client_id);
     const activeDeps = inMemory.deployments.filter(d => d.site_id === s.id && (d.is_open || d.status === "active" || d.status === "Active"));
+    const sReqs = (inMemory.site_requirements || []).filter(r => Number(r.site_id) === Number(s.id));
+    const reqCount = sReqs.length > 0 ? sReqs.reduce((sum, r) => sum + (Number(r.headcount) || 0), 0) : (s.required_count !== undefined ? s.required_count : (s.required_guards || 1));
     return {
       ...s,
       client_name: s.client_name || client?.name || "Client",
       deployed_count: activeDeps.length || s.deployed_count || 0,
-      required_count: s.required_count !== undefined ? s.required_count : (s.required_guards || 1),
+      required_count: reqCount,
+      required_guards: reqCount,
     };
   });
 
@@ -1915,6 +1964,8 @@ app.get("/api/v1/sites/:id", async (req, res) => {
   }
   const client = inMemory.clients.find(c => c.id === site.client_id);
   const deployments = inMemory.deployments.filter(d => d.site_id === site.id && (d.is_open || d.status === "active"));
+  const siteReqs = (inMemory.site_requirements || []).filter(r => Number(r.site_id) === Number(site.id));
+  const reqCount = siteReqs.length > 0 ? siteReqs.reduce((sum, r) => sum + (Number(r.headcount) || 0), 0) : (site.required_count !== undefined ? site.required_count : (site.required_guards || 0));
   return res.json(envelope({
     ...site,
     client_name: site.client_name || client?.name || "Client",
@@ -1922,6 +1973,8 @@ app.get("/api/v1/sites/:id", async (req, res) => {
     lat: site.lat !== undefined ? site.lat : (site.latitude || null),
     lng: site.lng !== undefined ? site.lng : (site.longitude || null),
     radius_m: site.radius_m !== undefined ? site.radius_m : (site.geofence_radius_meters || 200),
+    required_count: reqCount,
+    required_guards: reqCount,
     deployed_count: deployments.length,
     deployments,
     checkpoints_count: 3,
@@ -1935,11 +1988,91 @@ app.get("/api/v1/sites/:id/deployments", (req, res) => {
 });
 
 app.get("/api/v1/sites/:id/manpower", (req, res) => {
-  return res.json(envelope({ required: 12, deployed: 12, variance: 0 }));
+  const siteId = Number(req.params.id);
+  const targetDate = req.query.date || new Date().toISOString().slice(0, 10);
+
+  const siteReqs = (inMemory.site_requirements || []).filter(r =>
+    Number(r.site_id) === siteId &&
+    (!r.from_date || r.from_date <= targetDate) &&
+    (!r.to_date || r.to_date >= targetDate)
+  );
+
+  const siteDeps = (inMemory.deployments || []).filter(d =>
+    Number(d.site_id) === siteId &&
+    (d.is_open || d.status === "active" || d.status === "Active") &&
+    (!d.from_date || d.from_date <= targetDate) &&
+    (!d.to_date || d.to_date >= targetDate)
+  );
+
+  const rows = [];
+  const matchedDepIds = new Set();
+
+  for (const r of siteReqs) {
+    const shift = r.shift_id ? inMemory.shifts.find(s => s.id === Number(r.shift_id)) : null;
+    const catName = r.category_name || r.guard_category || "Security Guard";
+    const shiftName = r.shift_name || shift?.name || null;
+    const shiftTime = (r.start_time && r.end_time)
+      ? `${r.start_time.slice(0, 5)}–${r.end_time.slice(0, 5)}`
+      : (shift ? `${shift.start_time.slice(0, 5)}–${shift.end_time.slice(0, 5)}` : null);
+
+    const matching = siteDeps.filter(d => {
+      const catMatch = (d.category_name && d.category_name.toLowerCase() === catName.toLowerCase()) ||
+                       (d.guard_category_id && r.guard_category_id && Number(d.guard_category_id) === Number(r.guard_category_id));
+      const shiftMatch = !r.shift_id || (d.shift_id && Number(d.shift_id) === Number(r.shift_id)) || (d.shift_name && r.shift_name && d.shift_name.toLowerCase() === r.shift_name.toLowerCase());
+      return catMatch && shiftMatch;
+    });
+
+    for (const m of matching) {
+      matchedDepIds.add(m.id);
+    }
+
+    const deployed = matching.length;
+    const required = Number(r.headcount) || 0;
+    rows.push({
+      category_name: catName,
+      shift_name: shiftName,
+      shift_time: shiftTime,
+      required,
+      deployed,
+      gap: deployed - required,
+    });
+  }
+
+  const unmatched = siteDeps.filter(d => !matchedDepIds.has(d.id));
+  const unmatchedGroups = {};
+  for (const d of unmatched) {
+    const key = `${d.category_name || "Security Guard"}_${d.shift_name || ""}`;
+    if (!unmatchedGroups[key]) {
+      const shift = d.shift_id ? inMemory.shifts.find(s => s.id === Number(d.shift_id)) : null;
+      unmatchedGroups[key] = {
+        category_name: d.category_name || "Security Guard",
+        shift_name: d.shift_name || shift?.name || null,
+        shift_time: (d.start_time && d.end_time)
+          ? `${d.start_time.slice(0, 5)}–${d.end_time.slice(0, 5)}`
+          : (shift ? `${shift.start_time.slice(0, 5)}–${shift.end_time.slice(0, 5)}` : null),
+        required: 0,
+        deployed: 0,
+        gap: 0,
+      };
+    }
+    unmatchedGroups[key].deployed++;
+    unmatchedGroups[key].gap++;
+  }
+  for (const k of Object.keys(unmatchedGroups)) {
+    rows.push(unmatchedGroups[k]);
+  }
+
+  const totals = {
+    required: rows.reduce((s, r) => s + r.required, 0),
+    deployed: rows.reduce((s, r) => s + r.deployed, 0),
+    gap: rows.reduce((s, r) => s + r.gap, 0),
+  };
+
+  return res.json(envelope({ rows, totals }));
 });
 
 app.get("/api/v1/sites/:id/requirements", (req, res) => {
-  const reqs = inMemory.site_requirements.filter(r => r.site_id === Number(req.params.id));
+  const reqs = (inMemory.site_requirements || []).filter(r => Number(r.site_id) === Number(req.params.id));
   return res.json(listEnvelope(reqs));
 });
 
@@ -2646,12 +2779,36 @@ app.put("/api/v1/deployments/:id", async (req, res) => {
 });
 
 app.get("/api/v1/shifts", (req, res) => {
-  return res.json(listEnvelope(inMemory.shifts));
+  let list = (inMemory.shifts || []).map(s => {
+    const site_id = s.site_id ? Number(s.site_id) : null;
+    const startStr = s.start_time ? s.start_time.slice(0, 5) : "";
+    const endStr = s.end_time ? s.end_time.slice(0, 5) : "";
+    const timeRange = (startStr && endStr) ? ` ${startStr}–${endStr}` : "";
+    return {
+      ...s,
+      site_id,
+      label: s.label || `${s.name}${timeRange}`,
+      is_active: s.is_active !== undefined ? (s.is_active ? 1 : 0) : 1,
+    };
+  });
+
+  const isActive = getFilter(req, "is_active");
+  if (isActive !== undefined && isActive !== "") {
+    const wantActive = isActive === "1" || isActive === "true" || isActive === 1;
+    list = list.filter(s => wantActive ? (s.is_active === 1 || s.is_active === true) : (!s.is_active || s.is_active === 0));
+  }
+
+  const siteId = getFilter(req, "site_id");
+  if (siteId) {
+    list = list.filter(s => s.site_id === null || String(s.site_id) === String(siteId));
+  }
+
+  return res.json(listEnvelope(list));
 });
 
-app.post("/api/v1/shifts", (req, res) => {
+app.post("/api/v1/shifts", async (req, res) => {
   const newShift = {
-    id: inMemory.shifts.length + 1,
+    id: inMemory.shifts.length ? Math.max(...inMemory.shifts.map(s => s.id)) + 1 : 1,
     name: req.body.name,
     code: req.body.code ? req.body.code.toUpperCase() : `S${inMemory.shifts.length + 1}`,
     start_time: req.body.start_time || "08:00:00",
@@ -2662,22 +2819,25 @@ app.post("/api/v1/shifts", (req, res) => {
     site_id: req.body.site_id ? Number(req.body.site_id) : null,
   };
   inMemory.shifts.push(newShift);
+  await saveStore();
   return res.status(201).json(envelope(newShift));
 });
 
-app.put("/api/v1/shifts/:id", (req, res) => {
+app.put("/api/v1/shifts/:id", async (req, res) => {
   const id = Number(req.params.id);
   const idx = inMemory.shifts.findIndex(s => s.id === id);
   if (idx !== -1) {
     inMemory.shifts[idx] = { ...inMemory.shifts[idx], ...req.body };
+    await saveStore();
     return res.json(envelope(inMemory.shifts[idx]));
   }
   return res.status(404).json(envelope(null, {}, [{ message: "Shift not found" }]));
 });
 
-app.delete("/api/v1/shifts/:id", (req, res) => {
+app.delete("/api/v1/shifts/:id", async (req, res) => {
   const id = Number(req.params.id);
   inMemory.shifts = inMemory.shifts.filter(s => s.id !== id);
+  await saveStore();
   return res.json(envelope({ success: true }));
 });
 
@@ -4967,39 +5127,191 @@ app.get("/api/v1/contracts/:id", (req, res) => {
 });
 
 app.get("/api/v1/site-requirements", (req, res) => {
-  return res.json(listEnvelope(inMemory.site_requirements));
+  let list = (inMemory.site_requirements || []).map(r => {
+    const site = inMemory.sites.find(s => s.id === Number(r.site_id));
+    const client = site ? inMemory.clients.find(c => c.id === site.client_id) : (r.client_id ? inMemory.clients.find(c => c.id === Number(r.client_id)) : null);
+    const cat = masterItems.find(m => m.type === "guard_category" && (m.id === Number(r.guard_category_id) || m.name === r.category_name || m.name === r.guard_category));
+    const shift = r.shift_id ? inMemory.shifts.find(s => s.id === Number(r.shift_id)) : (r.shift_name ? inMemory.shifts.find(s => s.name === r.shift_name) : null);
+
+    const category_name = r.category_name || r.guard_category || cat?.name || "Security Guard";
+    const shift_name = r.shift_name || shift?.name || null;
+    const start_time = r.start_time || shift?.start_time || "07:00:00";
+    const end_time = r.end_time || shift?.end_time || "15:00:00";
+    const is_current = r.is_current !== undefined ? !!r.is_current : (!r.to_date || r.to_date >= new Date().toISOString().slice(0, 10));
+
+    return {
+      ...r,
+      site_id: site ? site.id : Number(r.site_id),
+      site_name: r.site_name || site?.name || "Site",
+      client_id: site ? site.client_id : (client ? client.id : Number(r.client_id) || null),
+      client_name: site ? site.client_name : (client ? client.name : r.client_name || "Client"),
+      guard_category_id: r.guard_category_id ? Number(r.guard_category_id) : (cat ? cat.id : 1),
+      category_name,
+      guard_category: category_name,
+      shift_id: r.shift_id ? Number(r.shift_id) : (shift ? shift.id : null),
+      shift_name,
+      start_time,
+      end_time,
+      headcount: Number(r.headcount) || 1,
+      from_date: r.from_date || null,
+      to_date: r.to_date || null,
+      is_current,
+      notes: r.notes || null,
+    };
+  });
+
+  const clientId = getFilter(req, "client_id");
+  if (clientId) {
+    list = list.filter(r => String(r.client_id) === String(clientId));
+  }
+
+  const siteId = getFilter(req, "site_id");
+  if (siteId) {
+    list = list.filter(r => String(r.site_id) === String(siteId));
+  }
+
+  const catId = getFilter(req, "guard_category_id");
+  if (catId) {
+    list = list.filter(r => String(r.guard_category_id) === String(catId));
+  }
+
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    list = list.filter(r =>
+      (r.site_name && r.site_name.toLowerCase().includes(q)) ||
+      (r.category_name && r.category_name.toLowerCase().includes(q)) ||
+      (r.shift_name && r.shift_name.toLowerCase().includes(q)) ||
+      (r.notes && r.notes.toLowerCase().includes(q))
+    );
+  }
+
+  const sort = req.query.sort || "id";
+  const dir = req.query.dir === "desc" ? -1 : 1;
+  list.sort((a, b) => {
+    let va = a[sort] ?? "";
+    let vb = b[sort] ?? "";
+    if (typeof va === "string") va = va.toLowerCase();
+    if (typeof vb === "string") vb = vb.toLowerCase();
+    if (va < vb) return -1 * dir;
+    if (va > vb) return 1 * dir;
+    return 0;
+  });
+
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || (req.query.page ? 25 : 200);
+  const total = list.length;
+  const paginated = req.query.page ? list.slice((page - 1) * perPage, page * perPage) : list;
+
+  return res.json(listEnvelope(paginated, total, page, perPage));
 });
 
-app.post("/api/v1/site-requirements", (req, res) => {
-  const site = inMemory.sites.find(s => s.id === Number(req.body.site_id)) || inMemory.sites[0];
+app.post("/api/v1/site-requirements", async (req, res) => {
+  const siteId = Number(req.body.site_id);
+  const site = inMemory.sites.find(s => s.id === siteId) || inMemory.sites[0];
+  const client = inMemory.clients.find(c => c.id === site.client_id);
+  const guard_category_id = req.body.guard_category_id ? Number(req.body.guard_category_id) : 1;
+  const category = masterItems.find(m => m.type === "guard_category" && m.id === guard_category_id);
+  const shift_id = req.body.shift_id ? Number(req.body.shift_id) : null;
+  const shift = shift_id ? inMemory.shifts.find(s => s.id === shift_id) : null;
+
+  const category_name = category ? category.name : (req.body.guard_category || "Security Guard");
+  const shift_name = shift ? shift.name : (req.body.shift_name || null);
+  const start_time = shift ? shift.start_time : "07:00:00";
+  const end_time = shift ? shift.end_time : "15:00:00";
+  const headcount = req.body.headcount === "" || req.body.headcount === null ? 1 : Math.max(1, Number(req.body.headcount) || 1);
+  const from_date = req.body.from_date || null;
+  const to_date = req.body.to_date || null;
+  const is_current = !to_date || to_date >= new Date().toISOString().slice(0, 10);
+
+  const nextId = inMemory.site_requirements.length ? Math.max(...inMemory.site_requirements.map(r => r.id)) + 1 : 1;
   const newReq = {
-    id: inMemory.site_requirements.length + 1,
+    id: nextId,
     site_id: site.id,
     site_name: site.name,
-    shift_name: req.body.shift_name || "Morning Shift (A)",
-    guard_category: req.body.guard_category || "Security Guard",
-    headcount: Number(req.body.headcount) || 4,
-    from_date: req.body.from_date || null,
-    to_date: req.body.to_date || null,
-    notes: req.body.notes || null,
+    client_id: site.client_id,
+    client_name: site.client_name || client?.name || "Client",
+    guard_category_id,
+    category_name,
+    guard_category: category_name,
+    shift_id,
+    shift_name,
+    start_time,
+    end_time,
+    headcount,
+    from_date,
+    to_date,
+    is_current,
+    notes: req.body.notes ? String(req.body.notes).trim() : null,
+    created_at: new Date().toISOString(),
   };
+
   inMemory.site_requirements.push(newReq);
+  recalculateRequiredGuards(site.id, site.client_id);
+  await saveStore();
   return res.status(201).json(envelope(newReq));
 });
 
-app.put("/api/v1/site-requirements/:id", (req, res) => {
+app.put("/api/v1/site-requirements/:id", async (req, res) => {
   const id = Number(req.params.id);
   const idx = inMemory.site_requirements.findIndex(r => r.id === id);
-  if (idx !== -1) {
-    inMemory.site_requirements[idx] = { ...inMemory.site_requirements[idx], ...req.body };
-    return res.json(envelope(inMemory.site_requirements[idx]));
+  if (idx === -1) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Requirement not found" }]));
   }
-  return res.status(404).json(envelope(null, {}, [{ message: "Requirement not found" }]));
+
+  const existing = inMemory.site_requirements[idx];
+  const siteId = req.body.site_id ? Number(req.body.site_id) : existing.site_id;
+  const site = inMemory.sites.find(s => s.id === siteId) || inMemory.sites[0];
+  const client = inMemory.clients.find(c => c.id === site.client_id);
+
+  const guard_category_id = req.body.guard_category_id ? Number(req.body.guard_category_id) : existing.guard_category_id;
+  const category = masterItems.find(m => m.type === "guard_category" && m.id === guard_category_id);
+  const shift_id = req.body.shift_id !== undefined ? (req.body.shift_id ? Number(req.body.shift_id) : null) : existing.shift_id;
+  const shift = shift_id ? inMemory.shifts.find(s => s.id === shift_id) : null;
+
+  const category_name = category ? category.name : (req.body.category_name || existing.category_name || "Security Guard");
+  const shift_name = shift ? shift.name : (req.body.shift_name !== undefined ? req.body.shift_name : existing.shift_name);
+  const start_time = shift ? shift.start_time : (req.body.start_time || existing.start_time || "07:00:00");
+  const end_time = shift ? shift.end_time : (req.body.end_time || existing.end_time || "15:00:00");
+  const headcount = req.body.headcount !== undefined ? (Number(req.body.headcount) || 1) : existing.headcount;
+  const from_date = req.body.from_date !== undefined ? (req.body.from_date || null) : existing.from_date;
+  const to_date = req.body.to_date !== undefined ? (req.body.to_date || null) : existing.to_date;
+  const is_current = !to_date || to_date >= new Date().toISOString().slice(0, 10);
+
+  inMemory.site_requirements[idx] = {
+    ...existing,
+    ...req.body,
+    id,
+    site_id: site.id,
+    site_name: site.name,
+    client_id: site.client_id,
+    client_name: site.client_name || client?.name || "Client",
+    guard_category_id,
+    category_name,
+    guard_category: category_name,
+    shift_id,
+    shift_name,
+    start_time,
+    end_time,
+    headcount,
+    from_date,
+    to_date,
+    is_current,
+    notes: req.body.notes !== undefined ? (req.body.notes ? String(req.body.notes).trim() : null) : existing.notes,
+  };
+
+  recalculateRequiredGuards(site.id, site.client_id);
+  await saveStore();
+  return res.json(envelope(inMemory.site_requirements[idx]));
 });
 
-app.delete("/api/v1/site-requirements/:id", (req, res) => {
+app.delete("/api/v1/site-requirements/:id", async (req, res) => {
   const id = Number(req.params.id);
-  inMemory.site_requirements = inMemory.site_requirements.filter(r => r.id !== id);
+  const existing = inMemory.site_requirements.find(r => r.id === id);
+  if (existing) {
+    inMemory.site_requirements = inMemory.site_requirements.filter(r => r.id !== id);
+    recalculateRequiredGuards(existing.site_id, existing.client_id);
+    await saveStore();
+  }
   return res.json(envelope({ success: true }));
 });
 
@@ -5242,15 +5554,61 @@ const masterItems = [
   { id: 3, type: "guard_category", code: "HG", name: "Head Guard", sort_order: 3, is_active: 1 },
   { id: 4, type: "guard_category", code: "AG", name: "Armed Guard", sort_order: 4, is_active: 1 },
   { id: 5, type: "guard_category", code: "LG", name: "Lady Guard", sort_order: 5, is_active: 1 },
-  { id: 6, type: "interview_stage", code: "APPLIED", name: "Applied", sort_order: 1, is_active: 1 },
-  { id: 7, type: "interview_stage", code: "SCREEN", name: "Screening", sort_order: 2, is_active: 1 },
-  { id: 8, type: "interview_stage", code: "INT", name: "Interview", sort_order: 3, is_active: 1 },
-  { id: 9, type: "interview_stage", code: "SEL", name: "Selected", sort_order: 4, is_active: 1 },
-  { id: 10, type: "interview_stage", code: "HIRED", name: "Hired", sort_order: 5, is_active: 1 },
+  { id: 6, type: "guard_category", code: "GM", name: "Gunman", sort_order: 6, is_active: 1 },
+  { id: 7, type: "guard_category", code: "BNC", name: "Bouncer", sort_order: 7, is_active: 1 },
+  { id: 8, type: "guard_category", code: "SUP", name: "Supervisor", sort_order: 8, is_active: 1 },
+  { id: 9, type: "guard_category", code: "FO", name: "Field Officer", sort_order: 9, is_active: 1 },
+  { id: 10, type: "interview_stage", code: "APPLIED", name: "Applied", sort_order: 1, is_active: 1 },
+  { id: 11, type: "interview_stage", code: "SCREEN", name: "Screening", sort_order: 2, is_active: 1 },
+  { id: 12, type: "interview_stage", code: "INT", name: "Interview", sort_order: 3, is_active: 1 },
+  { id: 13, type: "interview_stage", code: "SEL", name: "Selected", sort_order: 4, is_active: 1 },
+  { id: 14, type: "interview_stage", code: "HIRED", name: "Hired", sort_order: 5, is_active: 1 },
+  { id: 15, type: "incident_type", code: "TRESPASS", name: "Unauthorized Entry / Trespassing", sort_order: 1, is_active: 1 },
+  { id: 16, type: "incident_type", code: "THEFT", name: "Theft / Burglary Attempt", sort_order: 2, is_active: 1 },
+  { id: 17, type: "incident_type", code: "FIRE", name: "Fire Safety / Hazard", sort_order: 3, is_active: 1 },
+  { id: 18, type: "incident_type", code: "DAMAGE", name: "Property Damage", sort_order: 4, is_active: 1 },
+  { id: 19, type: "incident_type", code: "MEDICAL", name: "Medical Emergency", sort_order: 5, is_active: 1 },
+  { id: 20, type: "complaint_type", code: "OPS", name: "Operations & Access", sort_order: 1, is_active: 1 },
+  { id: 21, type: "complaint_type", code: "GROOMING", name: "Grooming & Turnout", sort_order: 2, is_active: 1 },
+  { id: 22, type: "complaint_type", code: "EQUIP", name: "Equipment & Communication", sort_order: 3, is_active: 1 },
+  { id: 23, type: "complaint_type", code: "ATTEND", name: "Short Attendance / Desertion", sort_order: 4, is_active: 1 },
+  { id: 24, type: "industry", code: "COMM", name: "Commercial Real Estate", sort_order: 1, is_active: 1 },
+  { id: 25, type: "industry", code: "RES", name: "Residential Complex", sort_order: 2, is_active: 1 },
+  { id: 26, type: "industry", code: "BANK", name: "Banking & Financial Services", sort_order: 3, is_active: 1 },
+  { id: 27, type: "industry", code: "MFG", name: "Manufacturing & Industrial", sort_order: 4, is_active: 1 },
+  { id: 28, type: "industry", code: "RETAIL", name: "Retail & Malls", sort_order: 5, is_active: 1 },
+  { id: 29, type: "industry", code: "IT", name: "IT & Tech Parks", sort_order: 6, is_active: 1 },
+  { id: 30, type: "lead_source", code: "REFERRAL", name: "Client Referral", sort_order: 1, is_active: 1 },
+  { id: 31, type: "lead_source", code: "INBOUND", name: "Website / Inbound", sort_order: 2, is_active: 1 },
+  { id: 32, type: "lead_source", code: "COLD", name: "Field / Direct Outreach", sort_order: 3, is_active: 1 },
+  { id: 33, type: "blood_group", code: "A+", name: "A+", sort_order: 1, is_active: 1 },
+  { id: 34, type: "blood_group", code: "A-", name: "A-", sort_order: 2, is_active: 1 },
+  { id: 35, type: "blood_group", code: "B+", name: "B+", sort_order: 3, is_active: 1 },
+  { id: 36, type: "blood_group", code: "B-", name: "B-", sort_order: 4, is_active: 1 },
+  { id: 37, type: "blood_group", code: "O+", name: "O+", sort_order: 5, is_active: 1 },
+  { id: 38, type: "blood_group", code: "O-", name: "O-", sort_order: 6, is_active: 1 },
+  { id: 39, type: "blood_group", code: "AB+", name: "AB+", sort_order: 7, is_active: 1 },
+  { id: 40, type: "blood_group", code: "AB-", name: "AB-", sort_order: 8, is_active: 1 },
+  { id: 41, type: "designation", code: "SEC_GUARD", name: "Security Guard", sort_order: 1, is_active: 1 },
+  { id: 42, type: "designation", code: "HEAD_GUARD", name: "Head Guard", sort_order: 2, is_active: 1 },
+  { id: 43, type: "designation", code: "SUPERVISOR", name: "Field Supervisor", sort_order: 3, is_active: 1 },
+  { id: 44, type: "designation", code: "ARMED_GUARD", name: "Armed Security Guard", sort_order: 4, is_active: 1 },
 ];
 
 app.get("/api/v1/masters/types", (req, res) => {
   return res.json(envelope(masterTypes));
+});
+
+app.get(["/api/v1/masters/lookup", "/masters/lookup"], (req, res) => {
+  const typesParam = req.query.types || "";
+  const requestedTypes = typesParam
+    ? typesParam.split(",").map(t => t.trim()).filter(Boolean)
+    : masterTypes.map(m => m.type);
+  const result = {};
+  for (const t of requestedTypes) {
+    result[t] = masterItems.filter(m => m.type === t && (m.is_active === 1 || m.is_active === true));
+  }
+  return res.json(envelope(result));
 });
 
 app.get("/api/v1/masters", (req, res) => {
