@@ -15,14 +15,29 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize Supabase Client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://lmtgvnqingcljhrrmmgs.supabase.co";
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+// Initialize Supabase Client with project credentials for persistent storage
+const defaultSupabaseUrl = "https://lmtgvnqingcljhrrmmgs.supabase.co";
+const defaultSupabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtdGd2bnFpbmdjbGpocnJtbWdzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjcxMDAwMywiZXhwIjoyMTA4Mjg2MDAzfQ.1S8ukuAyhiphczOi6ssVPuOzIoFa5D_aheSX83lnMM8";
+
+const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL.includes("lmtgvnqingcljhrrmmgs"))
+  ? process.env.NEXT_PUBLIC_SUPABASE_URL
+  : defaultSupabaseUrl;
+const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.length > 50)
+  ? process.env.SUPABASE_SERVICE_ROLE_KEY
+  : defaultSupabaseKey;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
+
+// Sync middleware: ensures that fresh serverless lambdas or browser refreshes get the latest persisted store
+app.use(async (req, res, next) => {
+  if (req.path.startsWith("/api/v1/")) {
+    await syncFromSupabase(false);
+  }
+  next();
+});
 
 // Helpers for OpenAPI envelope responses
 function envelope(data = null, meta = {}, errors = []) {
@@ -382,7 +397,12 @@ const inMemory = {
   ],
 };
 
-function saveStore() {
+let lastSupabaseSync = 0;
+let isSaving = false;
+let isSyncing = false;
+
+async function saveStore() {
+  isSaving = true;
   try {
     const toSave = {
       clients: inMemory.clients,
@@ -390,9 +410,63 @@ function saveStore() {
       guards: inMemory.guards,
       deployments: inMemory.deployments,
     };
-    fs.writeFileSync(DB_FILE, JSON.stringify(toSave, null, 2), "utf-8");
+    try {
+      fs.writeFileSync(DB_FILE, JSON.stringify(toSave, null, 2), "utf-8");
+    } catch (e) {
+      // Non-fatal in read-only environments
+    }
+
+    if (supabase) {
+      const { error } = await supabase
+        .from("app_settings")
+        .upsert({
+          key: "sgf_store",
+          value: toSave,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "key" });
+      if (error) {
+        console.error("Supabase upsert error:", error);
+      } else {
+        lastSupabaseSync = Date.now();
+      }
+    }
   } catch (err) {
-    // Non-fatal in read-only environments
+    console.error("Supabase saveStore error:", err?.message || err);
+  } finally {
+    isSaving = false;
+  }
+}
+
+async function syncFromSupabase(force = false) {
+  if (!supabase || isSaving) return;
+  if (!force && Date.now() - lastSupabaseSync < 3000) return;
+  if (isSyncing) return;
+  isSyncing = true;
+  try {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("value, updated_at")
+      .eq("key", "sgf_store")
+      .single();
+    if (!error && data?.value && Array.isArray(data.value.clients) && data.value.clients.length > 0) {
+      if (!isSaving) {
+        const v = data.value;
+        if (Array.isArray(v.clients)) inMemory.clients = v.clients;
+        if (Array.isArray(v.sites)) inMemory.sites = v.sites;
+        if (Array.isArray(v.guards)) inMemory.guards = v.guards;
+        if (Array.isArray(v.deployments)) inMemory.deployments = v.deployments;
+        lastSupabaseSync = Date.now();
+        try {
+          fs.writeFileSync(DB_FILE, JSON.stringify(v, null, 2), "utf-8");
+        } catch (e) {}
+      }
+    } else if (!error && (!data?.value || !Array.isArray(data?.value?.clients))) {
+      await saveStore();
+    }
+  } catch (err) {
+    console.error("syncFromSupabase error:", err?.message || err);
+  } finally {
+    isSyncing = false;
   }
 }
 
@@ -410,6 +484,7 @@ function loadStore() {
   }
 }
 loadStore();
+syncFromSupabase(true).catch(() => {});
 
 // ============================================================================
 // ATTENDANCE & LEAVE STORE INITIALIZER
@@ -1496,7 +1571,7 @@ app.get("/api/v1/clients", (req, res) => {
   return res.json(listEnvelope(paginated, total, page, perPage));
 });
 
-app.post("/api/v1/clients", (req, res) => {
+app.post("/api/v1/clients", async (req, res) => {
   const id = Math.max(0, ...inMemory.clients.map(c => c.id || 0)) + 1;
   const clientName = (req.body.name || req.body.company_name || "New Client").trim();
   const rawCode = (req.body.code || "").trim();
@@ -1548,12 +1623,16 @@ app.post("/api/v1/clients", (req, res) => {
     id: nextSiteId,
     client_id: newClient.id,
     client_name: newClient.name,
+    client_code: newClient.code,
     name: `${newClient.name} - Head Office / Main Site`,
     code: `SITE-${newClient.code.slice(0, 4)}-01`,
     address: newClient.billing_address || `${newClient.city || "Mumbai"}, Maharashtra`,
     city: newClient.city || "Mumbai",
+    lat: 19.0760,
+    lng: 72.8777,
     latitude: 19.0760,
     longitude: 72.8777,
+    radius_m: 200,
     geofence_radius_meters: 200,
     supervisor_name: newClient.contact_name || "Operations Lead",
     supervisor_phone: newClient.contact_mobile || "+91 9820011225",
@@ -1565,13 +1644,17 @@ app.post("/api/v1/clients", (req, res) => {
     created_at: new Date().toISOString(),
   };
   inMemory.sites.unshift(primarySite);
-  saveStore();
+  await saveStore();
 
   return res.status(201).json(envelope(newClient));
 });
 
-app.get("/api/v1/clients/:id", (req, res) => {
-  const client = inMemory.clients.find(c => c.id === Number(req.params.id)) || inMemory.clients[0];
+app.get("/api/v1/clients/:id", async (req, res) => {
+  await syncFromSupabase(false);
+  const client = inMemory.clients.find(c => c.id === Number(req.params.id));
+  if (!client) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Client not found" }]));
+  }
   const sites = inMemory.sites.filter(s => s.client_id === client.id);
   const clientDeps = inMemory.deployments.filter(d => d.client_id === client.id);
   return res.json(envelope({
@@ -1587,7 +1670,7 @@ app.get("/api/v1/clients/:id", (req, res) => {
   }));
 });
 
-app.put("/api/v1/clients/:id", (req, res) => {
+app.put("/api/v1/clients/:id", async (req, res) => {
   const id = Number(req.params.id);
   const idx = inMemory.clients.findIndex(c => c.id === id);
   if (idx !== -1) {
@@ -1608,18 +1691,18 @@ app.put("/api/v1/clients/:id", (req, res) => {
         if (d.client_id === id) d.client_name = req.body.name;
       });
     }
-    saveStore();
+    await saveStore();
     return res.json(envelope(inMemory.clients[idx]));
   }
   return res.status(404).json(envelope(null, {}, [{ message: "Client not found" }]));
 });
 
-app.delete("/api/v1/clients/:id", (req, res) => {
+app.delete("/api/v1/clients/:id", async (req, res) => {
   const id = Number(req.params.id);
   inMemory.clients = inMemory.clients.filter(c => c.id !== id);
   inMemory.sites = inMemory.sites.filter(s => s.client_id !== id);
   inMemory.deployments = inMemory.deployments.filter(d => d.client_id !== id);
-  saveStore();
+  await saveStore();
   return res.json(envelope({ success: true }));
 });
 
@@ -1758,7 +1841,7 @@ app.get("/api/v1/field/lookup", (req, res) => {
   return res.json(envelope(result));
 });
 
-app.post("/api/v1/sites", (req, res) => {
+app.post("/api/v1/sites", async (req, res) => {
   const clientId = Number(req.body.client_id) || 1;
   const client = inMemory.clients.find(c => c.id === clientId);
   const nextSiteId = Math.max(0, ...inMemory.sites.map(s => s.id || 0)) + 1;
@@ -1768,6 +1851,7 @@ app.post("/api/v1/sites", (req, res) => {
     id: nextSiteId,
     client_id: clientId,
     client_name: client?.name || req.body.client_name || "Client",
+    client_code: client?.code || "CLI",
     name: siteName,
     code: req.body.code ? req.body.code.trim().toUpperCase() : `SITE-${(client?.code || "STE").slice(0, 4)}-${String(nextSiteId).padStart(2, "0")}`,
     address: req.body.address || "Mumbai",
@@ -1775,8 +1859,11 @@ app.post("/api/v1/sites", (req, res) => {
     state: req.body.state || "Maharashtra",
     state_code: req.body.state_code || "27",
     pincode: req.body.pincode || "400001",
+    lat: Number(req.body.lat || req.body.latitude) || 18.9912,
+    lng: Number(req.body.lng || req.body.longitude) || 72.8315,
     latitude: Number(req.body.lat || req.body.latitude) || 18.9912,
     longitude: Number(req.body.lng || req.body.longitude) || 72.8315,
+    radius_m: Number(req.body.radius_m || req.body.geofence_radius_meters) || 200,
     geofence_radius_meters: Number(req.body.radius_m || req.body.geofence_radius_meters) || 200,
     supervisor_name: req.body.supervisor_name || "Vikram Deshmukh",
     supervisor_phone: req.body.contact_mobile || "+91 9820011225",
@@ -1792,22 +1879,22 @@ app.post("/api/v1/sites", (req, res) => {
   if (client) {
     client.sites_count = (client.sites_count || 0) + 1;
   }
-  saveStore();
+  await saveStore();
   return res.status(201).json(envelope(newSite));
 });
 
-app.put("/api/v1/sites/:id", (req, res) => {
+app.put("/api/v1/sites/:id", async (req, res) => {
   const id = Number(req.params.id);
   const idx = inMemory.sites.findIndex(s => s.id === id);
   if (idx !== -1) {
     inMemory.sites[idx] = { ...inMemory.sites[idx], ...req.body };
-    saveStore();
+    await saveStore();
     return res.json(envelope(inMemory.sites[idx]));
   }
   return res.status(404).json(envelope(null, {}, [{ message: "Site not found" }]));
 });
 
-app.delete("/api/v1/sites/:id", (req, res) => {
+app.delete("/api/v1/sites/:id", async (req, res) => {
   const id = Number(req.params.id);
   const site = inMemory.sites.find(s => s.id === id);
   inMemory.sites = inMemory.sites.filter(s => s.id !== id);
@@ -1816,18 +1903,29 @@ app.delete("/api/v1/sites/:id", (req, res) => {
     const client = inMemory.clients.find(c => c.id === site.client_id);
     if (client && client.sites_count > 0) client.sites_count--;
   }
-  saveStore();
+  await saveStore();
   return res.json(envelope({ success: true }));
 });
 
-app.get("/api/v1/sites/:id", (req, res) => {
-  const site = inMemory.sites.find(s => s.id === Number(req.params.id)) || inMemory.sites[0];
-  const deployments = inMemory.deployments.filter(d => d.site_id === site.id);
+app.get("/api/v1/sites/:id", async (req, res) => {
+  await syncFromSupabase(false);
+  const site = inMemory.sites.find(s => s.id === Number(req.params.id));
+  if (!site) {
+    return res.status(404).json(envelope(null, {}, [{ message: "Site not found" }]));
+  }
+  const client = inMemory.clients.find(c => c.id === site.client_id);
+  const deployments = inMemory.deployments.filter(d => d.site_id === site.id && (d.is_open || d.status === "active"));
   return res.json(envelope({
     ...site,
+    client_name: site.client_name || client?.name || "Client",
+    client_code: site.client_code || client?.code || "CLI",
+    lat: site.lat !== undefined ? site.lat : (site.latitude || null),
+    lng: site.lng !== undefined ? site.lng : (site.longitude || null),
+    radius_m: site.radius_m !== undefined ? site.radius_m : (site.geofence_radius_meters || 200),
+    deployed_count: deployments.length,
     deployments,
     checkpoints_count: 3,
-    active_incidents_count: 1,
+    active_incidents_count: 0,
   }));
 });
 
@@ -2364,7 +2462,7 @@ app.get("/api/v1/deployments", (req, res) => {
   return res.json(listEnvelope(paginated, total, page, perPage));
 });
 
-app.post("/api/v1/deployments", (req, res) => {
+app.post("/api/v1/deployments", async (req, res) => {
   const guardId = Number(req.body.guard_id);
   const siteId = Number(req.body.site_id);
   const shiftId = Number(req.body.shift_id) || 1;
@@ -2417,11 +2515,11 @@ app.post("/api/v1/deployments", (req, res) => {
   if (client) {
     client.deployed_count = (client.deployed_count || 0) + 1;
   }
-  saveStore();
+  await saveStore();
   return res.status(201).json(envelope(newDep));
 });
 
-app.post("/api/v1/deployments/transfer", (req, res) => {
+app.post("/api/v1/deployments/transfer", async (req, res) => {
   const guardId = Number(req.body.guard_id);
   const toSiteId = Number(req.body.site_id || req.body.to_site_id);
   const toShiftId = Number(req.body.shift_id || req.body.to_shift_id) || 1;
@@ -2477,11 +2575,11 @@ app.post("/api/v1/deployments/transfer", (req, res) => {
     guard.current_deployment_id = newDep.id;
     guard.deployed_since = fromDate;
   }
-  saveStore();
+  await saveStore();
   return res.json(envelope({ success: true, message: "Guard transferred successfully", deployment: newDep }));
 });
 
-app.post("/api/v1/deployments/:id/end", (req, res) => {
+app.post("/api/v1/deployments/:id/end", async (req, res) => {
   const id = Number(req.params.id);
   const dep = inMemory.deployments.find(d => d.id === id);
   if (dep) {
@@ -2502,11 +2600,11 @@ app.post("/api/v1/deployments/:id/end", (req, res) => {
     const client = inMemory.clients.find(c => c.id === dep.client_id);
     if (client && client.deployed_count > 0) client.deployed_count--;
   }
-  saveStore();
+  await saveStore();
   return res.json(envelope({ success: true, message: "Deployment ended" }));
 });
 
-app.delete("/api/v1/deployments/:id", (req, res) => {
+app.delete("/api/v1/deployments/:id", async (req, res) => {
   const id = Number(req.params.id);
   const dep = inMemory.deployments.find(d => d.id === id);
   if (dep) {
@@ -2532,16 +2630,16 @@ app.delete("/api/v1/deployments/:id", (req, res) => {
     }
     inMemory.deployments = inMemory.deployments.filter(d => d.id !== id);
   }
-  saveStore();
+  await saveStore();
   return res.json(envelope({ success: true }));
 });
 
-app.put("/api/v1/deployments/:id", (req, res) => {
+app.put("/api/v1/deployments/:id", async (req, res) => {
   const id = Number(req.params.id);
   const idx = inMemory.deployments.findIndex(d => d.id === id);
   if (idx !== -1) {
     inMemory.deployments[idx] = { ...inMemory.deployments[idx], ...req.body };
-    saveStore();
+    await saveStore();
     return res.json(envelope(inMemory.deployments[idx]));
   }
   return res.json(envelope({ id, ...req.body }));
