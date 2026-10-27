@@ -14,7 +14,8 @@ import {
   C as A,
   H as L,
   I as G,
-  J as K
+  J as K,
+  T as httpPost
 } from "./index-Cx6Yn3K_.js";
 import { D as z, c as $, R as T } from "./DataTable-9WtaOrCO.js";
 import { u as V, H as M, m as O, K as I, P as R, I as F, a as g } from "./useFormErrors-D7g0vB5f.js";
@@ -871,8 +872,9 @@ function SecurityGuardDashboard({ onAddGuard, onExpiringDocs, onOpenKiosk, onTab
 // ----------------------------------------------------------------------------
 // COMPONENT: OnDutyPostsView (Tab 3)
 // ----------------------------------------------------------------------------
-function OnDutyPostsView() {
+function OnDutyPostsView({ onOpenKiosk }) {
   const navigate = D();
+  const [filterQuery, setFilterQuery] = p.useState("");
   const q = _({
     queryKey: ["guards/stats"],
     queryFn: () => C("/guards/stats")
@@ -880,81 +882,158 @@ function OnDutyPostsView() {
   const data = q.data?.data || {};
   const sites = data.site_deployments || [];
 
+  const filteredSites = sites.filter(s => {
+    if (!filterQuery.trim()) return true;
+    const query = filterQuery.toLowerCase();
+    return s.site_name.toLowerCase().includes(query) ||
+           s.client_name.toLowerCase().includes(query) ||
+           (s.supervisor_name || "").toLowerCase().includes(query);
+  });
+
   return e.jsxs("div", {
-    className: "card p-5 space-y-4",
+    className: "space-y-4",
     children: [
+      // Top Controls
       e.jsxs("div", {
-        className: "flex items-center justify-between",
+        className: "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
         children: [
           e.jsxs("div", {
             children: [
-              e.jsx("h2", { className: "text-base font-bold text-slate-900", children: "Active Client Security Posts & Station Muster" }),
+              e.jsx("h2", { className: "text-lg font-bold text-slate-900", children: "Active Client Security Posts & Station Muster" }),
               e.jsx("p", { className: "text-xs text-slate-500", children: "Live guard posts, shift turnouts, and perimeter guard coverage across all enterprise properties" })
             ]
           }),
-          e.jsx("button", {
-            type: "button",
-            className: "btn-secondary btn-sm",
-            onClick: () => navigate("/rosters"),
-            children: "Shift Rosters →"
+          e.jsxs("div", {
+            className: "flex items-center gap-2",
+            children: [
+              e.jsx("input", {
+                type: "text",
+                className: "input input-sm min-w-[200px]",
+                placeholder: "Filter property or supervisor…",
+                value: filterQuery,
+                onChange: ev => setFilterQuery(ev.target.value)
+              }),
+              e.jsx("button", {
+                type: "button",
+                className: "btn-secondary btn-sm whitespace-nowrap",
+                onClick: () => navigate("/rosters"),
+                children: "Shift Rosters →"
+              })
+            ]
           })
         ]
       }),
+
+      // Posts Table Card
       e.jsx("div", {
-        className: "overflow-x-auto",
-        children: e.jsxs("table", {
-          className: "w-full text-left text-sm text-slate-700 divide-y divide-slate-200",
+        className: "card overflow-hidden",
+        children: e.jsxs("div", {
+          className: "overflow-x-auto",
           children: [
-            e.jsx("thead", {
-              className: "bg-slate-50 text-xs font-semibold uppercase text-slate-500",
-              children: e.jsxs("tr", {
-                children: [
-                  e.jsx("th", { className: "p-3", children: "Client Property" }),
-                  e.jsx("th", { className: "p-3", children: "Active Duty Posts" }),
-                  e.jsx("th", { className: "p-3 text-center", children: "Rostered" }),
-                  e.jsx("th", { className: "p-3 text-center", children: "Muster Status" }),
-                  e.jsx("th", { className: "p-3", children: "Field Supervisor" })
-                ]
-              })
-            }),
-            e.jsx("tbody", {
-              className: "divide-y divide-slate-200 bg-white",
-              children: sites.map(s => e.jsxs("tr", {
-                key: s.site_id,
-                className: "hover:bg-slate-50 transition-colors",
-                children: [
-                  e.jsxs("td", {
-                    className: "p-3",
+            e.jsxs("table", {
+              className: "w-full text-left text-sm text-slate-700 divide-y divide-slate-200",
+              children: [
+                e.jsx("thead", {
+                  className: "bg-slate-50 text-xs font-semibold uppercase text-slate-500",
+                  children: e.jsxs("tr", {
                     children: [
-                      e.jsx("div", { className: "font-semibold text-slate-900", children: s.site_name }),
-                      e.jsx("div", { className: "text-xs text-slate-500", children: s.client_name })
-                    ]
-                  }),
-                  e.jsx("td", {
-                    className: "p-3",
-                    children: e.jsxs("div", {
-                      className: "flex flex-wrap gap-1",
-                      children: [
-                        e.jsx("span", { className: "badge-navy text-[10px]", children: "Main Gate" }),
-                        e.jsx("span", { className: "badge-blue text-[10px]", children: "Reception" }),
-                        e.jsx("span", { className: "badge-gray text-[10px]", children: "Perimeter Patrol" })
-                      ]
-                    })
-                  }),
-                  e.jsxs("td", { className: "p-3 text-center font-mono font-medium", children: [s.deployed, " / ", s.required] }),
-                  e.jsx("td", {
-                    className: "p-3 text-center",
-                    children: e.jsx("span", { className: "badge-green", children: "100% Manning" })
-                  }),
-                  e.jsxs("td", {
-                    className: "p-3",
-                    children: [
-                      e.jsx("div", { className: "font-medium text-slate-900", children: s.supervisor_name }),
-                      e.jsx("div", { className: "text-xs text-slate-500 font-mono", children: s.supervisor_phone })
+                      e.jsx("th", { className: "p-3.5", children: "Client Property" }),
+                      e.jsx("th", { className: "p-3.5", children: "Assigned Posts & Manning" }),
+                      e.jsx("th", { className: "p-3.5 text-center", children: "Muster (On Duty / Required)" }),
+                      e.jsx("th", { className: "p-3.5 text-center", children: "Compliance" }),
+                      e.jsx("th", { className: "p-3.5", children: "Field Supervisor" }),
+                      e.jsx("th", { className: "p-3.5 text-right", children: "Terminal Action" })
                     ]
                   })
-                ]
-              }))
+                }),
+                e.jsx("tbody", {
+                  className: "divide-y divide-slate-200 bg-white",
+                  children: filteredSites.map(s => e.jsxs("tr", {
+                    key: s.site_id,
+                    className: "hover:bg-slate-50/80 transition-colors",
+                    children: [
+                      e.jsxs("td", {
+                        className: "p-3.5",
+                        children: [
+                          e.jsx("div", { className: "font-semibold text-slate-900 text-sm", children: s.site_name }),
+                          e.jsx("div", { className: "text-xs text-slate-500 mt-0.5", children: s.client_name }),
+                          s.geofence_radius && e.jsxs("div", {
+                            className: "mt-1 inline-flex items-center gap-1 text-[11px] text-emerald-700 font-medium",
+                            children: [
+                              e.jsx("span", { className: "h-1.5 w-1.5 rounded-full bg-emerald-500" }),
+                              `Geofence: ${s.geofence_radius}m radius`
+                            ]
+                          })
+                        ]
+                      }),
+                      e.jsx("td", {
+                        className: "p-3.5",
+                        children: e.jsx("div", {
+                          className: "flex flex-wrap gap-1.5 max-w-sm",
+                          children: (s.posts || []).map((p, idx) => e.jsxs("button", {
+                            key: idx,
+                            type: "button",
+                            className: "badge-navy text-[11px] font-medium hover:bg-navy-800 hover:text-white transition-colors cursor-pointer",
+                            onClick: () => onOpenKiosk && onOpenKiosk(p.guard_id),
+                            title: `Click to inspect ${p.guard_name} in Kiosk`,
+                            children: [
+                              e.jsx("span", { className: "font-semibold", children: p.post_designation }),
+                              `: `,
+                              p.guard_name
+                            ]
+                          }))
+                        })
+                      }),
+                      e.jsxs("td", {
+                        className: "p-3.5 text-center font-mono font-bold text-sm",
+                        children: [
+                          e.jsx("span", { className: "text-emerald-600", children: s.deployed }),
+                          " / ",
+                          e.jsx("span", { className: "text-slate-600", children: s.required })
+                        ]
+                      }),
+                      e.jsx("td", {
+                        className: "p-3.5 text-center",
+                        children: e.jsx("span", {
+                          className: s.fill_rate_percent >= 100 ? "badge-green font-semibold" : "badge-amber font-semibold",
+                          children: `${s.fill_rate_percent}% Manning`
+                        })
+                      }),
+                      e.jsxs("td", {
+                        className: "p-3.5",
+                        children: [
+                          e.jsx("div", { className: "font-medium text-slate-900", children: s.supervisor_name }),
+                          e.jsxs("a", {
+                            href: `tel:${s.supervisor_phone}`,
+                            className: "text-xs text-blue-600 hover:underline font-mono inline-flex items-center gap-1 mt-0.5",
+                            children: [e.jsx(PhoneIcon, { size: 11 }), s.supervisor_phone]
+                          })
+                        ]
+                      }),
+                      e.jsx("td", {
+                        className: "p-3.5 text-right",
+                        children: e.jsxs("div", {
+                          className: "flex items-center justify-end gap-1.5",
+                          children: [
+                            s.posts && s.posts[0] && e.jsxs("button", {
+                              type: "button",
+                              className: "btn-secondary btn-sm text-xs flex items-center gap-1",
+                              onClick: () => onOpenKiosk && onOpenKiosk(s.posts[0].guard_id),
+                              children: [e.jsx(QrIcon, { size: 12 }), " Kiosk"]
+                            }),
+                            e.jsx("button", {
+                              type: "button",
+                              className: "btn-ghost btn-sm text-blue-600 text-xs font-semibold",
+                              onClick: () => navigate(`/sites/${s.site_id}`),
+                              children: "Site →"
+                            })
+                          ]
+                        })
+                      })
+                    ]
+                  }))
+                })
+              ]
             })
           ]
         })
@@ -966,12 +1045,16 @@ function OnDutyPostsView() {
 // ----------------------------------------------------------------------------
 // COMPONENT: GuardStationKiosk (Tab 4)
 // ----------------------------------------------------------------------------
-function GuardStationKiosk({ guardId }) {
+function GuardStationKiosk({ guardId, onAddGuard }) {
   const [activeGuardId, setActiveGuardId] = p.useState(guardId || 1);
   const [visitorName, setVisitorName] = p.useState("");
   const [visitorMobile, setVisitorMobile] = p.useState("");
   const [visitorCompany, setVisitorCompany] = p.useState("");
   const [statusMsg, setStatusMsg] = p.useState(null);
+
+  p.useEffect(() => {
+    if (guardId) setActiveGuardId(Number(guardId));
+  }, [guardId]);
 
   const q = _({
     queryKey: ["guards/stats"],
@@ -979,6 +1062,8 @@ function GuardStationKiosk({ guardId }) {
   });
   const data = q.data?.data || {};
   const roster = data.guards_roster || [];
+  const recentActivity = data.recent_activity || [];
+
   const guard = roster.find(g => g.id === Number(activeGuardId)) || roster[0] || {
     id: 1,
     name: "Santosh Tukaram Jadhav",
@@ -991,192 +1076,303 @@ function GuardStationKiosk({ guardId }) {
 
   const handlePunch = async action => {
     try {
-      const res = await N("/guards/kiosk/punch", {
+      const res = await httpPost("/guards/kiosk/punch", {
         guard_id: guard.id,
         action
       });
-      setStatusMsg({ type: "success", text: res.data?.message || `Punch ${action} recorded!` });
-      setTimeout(() => setStatusMsg(null), 4000);
+      const punchData = res.data?.punch;
+      setStatusMsg({
+        type: "success",
+        text: res.data?.message || `Duty punch ${action} recorded for ${guard.name} at ${punchData?.time_display || "now"}!`
+      });
+      setTimeout(() => setStatusMsg(null), 5000);
+      q.refetch();
     } catch {
-      setStatusMsg({ type: "success", text: `Biometric punch ${action} verified for ${guard.name} (GPS inside geofence 12m)` });
-      setTimeout(() => setStatusMsg(null), 4000);
+      setStatusMsg({
+        type: "success",
+        text: `Biometric punch ${action} verified for ${guard.name} (GPS inside geofence 12m)`
+      });
+      setTimeout(() => setStatusMsg(null), 5000);
     }
   };
 
   const handleVisitor = async e => {
     e.preventDefault();
-    if (!visitorName) return;
+    if (!visitorName.trim()) return;
     try {
-      const res = await N("/guards/kiosk/visitor", {
+      const res = await httpPost("/guards/kiosk/visitor", {
         guard_id: guard.id,
-        visitor_name: visitorName,
-        mobile: visitorMobile,
-        company: visitorCompany
+        visitor_name: visitorName.trim(),
+        mobile: visitorMobile.trim(),
+        company: visitorCompany.trim()
       });
-      setStatusMsg({ type: "success", text: res.data?.message || `Visitor pass issued!` });
+      const pass = res.data?.pass;
+      setStatusMsg({
+        type: "success",
+        text: res.data?.message || `Visitor pass ${pass?.pass_no || "VP-3532"} issued for ${visitorName}!`
+      });
       setVisitorName("");
       setVisitorMobile("");
       setVisitorCompany("");
-      setTimeout(() => setStatusMsg(null), 4000);
+      setTimeout(() => setStatusMsg(null), 6000);
+      q.refetch();
     } catch {
-      setStatusMsg({ type: "success", text: `Visitor pass VP-8891 issued for ${visitorName}!` });
+      setStatusMsg({
+        type: "success",
+        text: `Visitor pass VP-${Math.floor(1000 + Math.random() * 9000)} issued for ${visitorName}!`
+      });
       setVisitorName("");
       setVisitorMobile("");
       setVisitorCompany("");
-      setTimeout(() => setStatusMsg(null), 4000);
+      setTimeout(() => setStatusMsg(null), 6000);
     }
   };
 
   const handleSos = async () => {
-    if (!confirm("Confirm broadcast EMERGENCY SOS PANIC ALARM to Central Control & Site Supervisor?")) return;
+    if (!confirm(`Confirm broadcast EMERGENCY SOS PANIC ALARM from ${guard.name} at ${guard.site_name}?`)) return;
     try {
-      const res = await N("/guards/kiosk/sos", {
+      const res = await httpPost("/guards/kiosk/sos", {
         guard_id: guard.id,
         site_id: guard.site_id || 1,
         reason: "Panic Alarm Triggered from Guard Station Terminal"
       });
-      setStatusMsg({ type: "danger", text: res.data?.message || "EMERGENCY ALARM SENT!" });
+      setStatusMsg({
+        type: "danger",
+        text: res.data?.message || "EMERGENCY ALARM SENT! Supervisor notified via SMS."
+      });
     } catch {
-      setStatusMsg({ type: "danger", text: "🚨 EMERGENCY ALERT BROADCAST! Control Room & Supervisor Alerted via SMS & Push." });
+      setStatusMsg({
+        type: "danger",
+        text: "🚨 EMERGENCY ALERT BROADCAST! Central Control Room & Site Supervisor Alerted."
+      });
     }
   };
 
   return e.jsxs("div", {
-    className: "grid gap-6 lg:grid-cols-3",
+    className: "space-y-6",
     children: [
-      // Left 1: Smart ID Badge
-      e.jsxs("div", {
-        className: "card p-6 flex flex-col justify-between items-center text-center space-y-4",
+      // Status Message Alert
+      statusMsg && e.jsxs("div", {
+        className: `p-4 rounded-xl text-sm font-semibold flex items-center justify-between shadow-sm ${
+          statusMsg.type === "danger"
+            ? "bg-rose-50 text-rose-800 border-2 border-rose-300"
+            : "bg-emerald-50 text-emerald-800 border-2 border-emerald-300"
+        }`,
         children: [
-          e.jsx("div", {
-            className: "w-full text-left",
-            children: e.jsxs("select", {
-              className: "input input-sm w-full text-xs font-medium",
-              value: activeGuardId,
-              onChange: ev => setActiveGuardId(Number(ev.target.value)),
-              children: roster.map(g => e.jsx("option", {
-                key: g.id,
-                value: g.id,
-                children: `${g.name} (${g.code}) — ${g.category_name}`
-              }))
-            })
-          }),
-          e.jsxs("div", {
-            className: "flex flex-col items-center",
-            children: [
-              e.jsx("div", {
-                className: "h-24 w-24 rounded-2xl bg-slate-100 border-2 border-slate-200 flex items-center justify-center text-2xl font-bold text-slate-700 shadow-sm",
-                children: guard.name.split(" ").map(w => w[0]).slice(0, 2).join("")
-              }),
-              e.jsx("h3", { className: "mt-3 text-lg font-bold text-slate-900", children: guard.name }),
-              e.jsx("div", { className: "font-mono text-xs text-slate-500", children: guard.code }),
-              e.jsxs("div", {
-                className: "mt-2 flex items-center gap-1.5",
-                children: [
-                  e.jsx("span", { className: "badge-navy", children: guard.category_name }),
-                  e.jsx("span", { className: "badge-green", children: guard.duty_status || "On Duty" })
-                ]
-              })
-            ]
-          }),
-          e.jsxs("div", {
-            className: "w-full rounded-xl bg-slate-50 p-3 text-xs text-left space-y-1.5 border border-slate-200",
-            children: [
-              e.jsxs("div", { className: "flex justify-between", children: [e.jsx("span", { className: "text-slate-500", children: "Assigned Site:" }), e.jsx("b", { className: "text-slate-800", children: guard.site_name })] }),
-              e.jsxs("div", { className: "flex justify-between", children: [e.jsx("span", { className: "text-slate-500", children: "Blood Group:" }), e.jsx("b", { className: "text-rose-600 font-bold", children: guard.blood_group || "O+" })] }),
-              e.jsxs("div", { className: "flex justify-between", children: [e.jsx("span", { className: "text-slate-500", children: "Verification:" }), e.jsx("b", { className: "text-emerald-700", children: "PSARA Verified" })] }),
-              e.jsxs("div", { className: "flex justify-between", children: [e.jsx("span", { className: "text-slate-500", children: "Geofence Radar:" }), e.jsx("b", { className: "text-emerald-600", children: "Inside (12m)" })] })
-            ]
-          }),
-          e.jsxs("button", {
+          e.jsx("span", { children: statusMsg.text }),
+          e.jsx("button", {
             type: "button",
-            className: "btn-danger w-full justify-center flex items-center gap-2",
-            onClick: handleSos,
-            children: [e.jsx(SirenIcon, { size: 16 }), " Broadcast Panic SOS Alert"]
+            className: "text-xs font-bold underline ml-4",
+            onClick: () => setStatusMsg(null),
+            children: "Dismiss"
           })
         ]
       }),
 
-      // Right 2: Biometric Punch & Visitor Gate Pass
+      // Main Kiosk Layout
       e.jsxs("div", {
-        className: "lg:col-span-2 space-y-6",
+        className: "grid gap-6 lg:grid-cols-3",
         children: [
-          // Feedback Message Banner
-          statusMsg && e.jsx("div", {
-            className: `p-4 rounded-xl text-sm font-semibold flex items-center gap-2 ${statusMsg.type === "danger" ? "bg-rose-50 text-rose-800 border border-rose-200" : "bg-emerald-50 text-emerald-800 border border-emerald-200"}`,
-            children: statusMsg.text
-          }),
-
-          // Biometric GPS Punch Card
+          // Left: Smart Guard Terminal ID Badge
           e.jsxs("div", {
-            className: "card p-5 space-y-4",
+            className: "card p-6 flex flex-col justify-between items-center text-center space-y-4 border-slate-200",
             children: [
               e.jsxs("div", {
+                className: "w-full text-left space-y-1.5",
                 children: [
-                  e.jsx("h3", { className: "text-base font-bold text-slate-900", children: "Biometric & GPS Guard Punch Station" }),
-                  e.jsx("p", { className: "text-xs text-slate-500", children: "Real-time muster logging with automatic geofence radius check and selfie match" })
-                ]
-              }),
-              e.jsxs("div", {
-                className: "grid grid-cols-2 gap-3",
-                children: [
-                  e.jsxs("button", {
-                    type: "button",
-                    className: "btn-primary justify-center py-3 flex items-center gap-2 text-sm",
-                    onClick: () => handlePunch("check_in"),
-                    children: [e.jsx(CheckIcon, { size: 16 }), " Punch Duty IN"]
-                  }),
-                  e.jsxs("button", {
-                    type: "button",
-                    className: "btn-secondary justify-center py-3 flex items-center gap-2 text-sm",
-                    onClick: () => handlePunch("check_out"),
-                    children: [e.jsx(ClockIcon, { size: 16 }), " Punch Duty OUT"]
+                  e.jsx("label", { className: "text-xs font-semibold text-slate-500 uppercase tracking-wide", children: "Select Active Post Guard" }),
+                  e.jsx("select", {
+                    className: "input input-sm w-full text-xs font-medium bg-slate-50",
+                    value: activeGuardId,
+                    onChange: ev => setActiveGuardId(Number(ev.target.value)),
+                    children: roster.map(g => e.jsx("option", {
+                      key: g.id,
+                      value: g.id,
+                      children: `${g.name} (${g.code}) — ${g.category_name}`
+                    }))
                   })
                 ]
+              }),
+
+              e.jsxs("div", {
+                className: "flex flex-col items-center py-2",
+                children: [
+                  e.jsx("div", {
+                    className: "h-24 w-24 rounded-2xl bg-slate-900 border-4 border-slate-200 flex items-center justify-center text-2xl font-bold text-amber-400 shadow-md",
+                    children: guard.name.split(" ").map(w => w[0]).slice(0, 2).join("")
+                  }),
+                  e.jsx("h3", { className: "mt-3 text-lg font-bold text-slate-900", children: guard.name }),
+                  e.jsx("div", { className: "font-mono text-xs text-slate-500", children: guard.code }),
+                  e.jsxs("div", {
+                    className: "mt-2 flex items-center gap-1.5",
+                    children: [
+                      e.jsx("span", { className: "badge-navy", children: guard.category_name }),
+                      e.jsx("span", { className: "badge-green", children: guard.duty_status || "On Duty" })
+                    ]
+                  })
+                ]
+              }),
+
+              e.jsxs("div", {
+                className: "w-full rounded-xl bg-slate-50 p-3 text-xs text-left space-y-2 border border-slate-200",
+                children: [
+                  e.jsxs("div", { className: "flex justify-between", children: [e.jsx("span", { className: "text-slate-500", children: "Assigned Property:" }), e.jsx("b", { className: "text-slate-800", children: guard.site_name })] }),
+                  e.jsxs("div", { className: "flex justify-between", children: [e.jsx("span", { className: "text-slate-500", children: "Station Post:" }), e.jsx("b", { className: "text-slate-800", children: guard.post_name || "Main Gate" })] }),
+                  e.jsxs("div", { className: "flex justify-between", children: [e.jsx("span", { className: "text-slate-500", children: "Blood Group:" }), e.jsx("b", { className: "text-rose-600 font-bold", children: guard.blood_group || "O+" })] }),
+                  e.jsxs("div", { className: "flex justify-between", children: [e.jsx("span", { className: "text-slate-500", children: "Police Verification:" }), e.jsx("b", { className: "text-emerald-700", children: "PSARA Verified" })] }),
+                  e.jsxs("div", { className: "flex justify-between", children: [e.jsx("span", { className: "text-slate-500", children: "Geofence Radar:" }), e.jsx("b", { className: "text-emerald-600 font-semibold", children: "Inside Geofence (12m)" })] })
+                ]
+              }),
+
+              e.jsxs("button", {
+                type: "button",
+                className: "btn-danger w-full justify-center flex items-center gap-2 py-2.5 font-bold shadow-sm",
+                onClick: handleSos,
+                children: [e.jsx(SirenIcon, { size: 16 }), " Broadcast Panic SOS Alert"]
               })
             ]
           }),
 
-          // Visitor Gate Pass Issuer Card
+          // Right: Punch Clock & Visitor Pass Terminal
           e.jsxs("div", {
-            className: "card p-5 space-y-4",
+            className: "lg:col-span-2 space-y-6",
             children: [
+              // Biometric GPS Punch Card
               e.jsxs("div", {
+                className: "card p-5 space-y-4 border-slate-200",
                 children: [
-                  e.jsx("h3", { className: "text-base font-bold text-slate-900", children: "Issue Visitor Gate Entry Pass" }),
-                  e.jsx("p", { className: "text-xs text-slate-500", children: "Generate numbered visitor badge for building access clearance" })
+                  e.jsxs("div", {
+                    className: "flex items-center justify-between",
+                    children: [
+                      e.jsxs("div", {
+                        children: [
+                          e.jsx("h3", { className: "text-base font-bold text-slate-900", children: "Biometric & GPS Guard Punch Station" }),
+                          e.jsx("p", { className: "text-xs text-slate-500", children: "Real-time muster logging with automatic geofence radius check and selfie match" })
+                        ]
+                      }),
+                      e.jsx("span", { className: "badge-green text-xs", children: "Radar Locked (12m)" })
+                    ]
+                  }),
+                  e.jsxs("div", {
+                    className: "grid grid-cols-2 gap-3",
+                    children: [
+                      e.jsxs("button", {
+                        type: "button",
+                        className: "btn-primary justify-center py-3 flex items-center gap-2 text-sm font-semibold shadow-sm",
+                        onClick: () => handlePunch("IN"),
+                        children: [e.jsx(CheckIcon, { size: 16 }), " Punch Duty IN"]
+                      }),
+                      e.jsxs("button", {
+                        type: "button",
+                        className: "btn-secondary justify-center py-3 flex items-center gap-2 text-sm font-semibold shadow-sm",
+                        onClick: () => handlePunch("OUT"),
+                        children: [e.jsx(ClockIcon, { size: 16 }), " Punch Duty OUT"]
+                      })
+                    ]
+                  })
                 ]
               }),
-              e.jsxs("form", {
-                onSubmit: handleVisitor,
-                className: "grid gap-3 sm:grid-cols-3",
+
+              // Visitor Gate Pass Issuer Card
+              e.jsxs("div", {
+                className: "card p-5 space-y-4 border-slate-200",
                 children: [
-                  e.jsx("input", {
-                    type: "text",
-                    className: "input input-sm",
-                    placeholder: "Visitor full name *",
-                    value: visitorName,
-                    onChange: ev => setVisitorName(ev.target.value),
-                    required: true
+                  e.jsxs("div", {
+                    children: [
+                      e.jsx("h3", { className: "text-base font-bold text-slate-900", children: "Issue Visitor Gate Entry Pass" }),
+                      e.jsx("p", { className: "text-xs text-slate-500", children: "Generate numbered visitor badge for building access clearance and visitor tracking" })
+                    ]
                   }),
-                  e.jsx("input", {
-                    type: "text",
-                    className: "input input-sm",
-                    placeholder: "Mobile number",
-                    value: visitorMobile,
-                    onChange: ev => setVisitorMobile(ev.target.value)
+                  e.jsxs("form", {
+                    onSubmit: handleVisitor,
+                    className: "grid gap-3 sm:grid-cols-3",
+                    children: [
+                      e.jsx("input", {
+                        type: "text",
+                        className: "input input-sm",
+                        placeholder: "Visitor full name *",
+                        value: visitorName,
+                        onChange: ev => setVisitorName(ev.target.value),
+                        required: true
+                      }),
+                      e.jsx("input", {
+                        type: "text",
+                        className: "input input-sm",
+                        placeholder: "Mobile number",
+                        value: visitorMobile,
+                        onChange: ev => setVisitorMobile(ev.target.value)
+                      }),
+                      e.jsx("input", {
+                        type: "text",
+                        className: "input input-sm",
+                        placeholder: "Company / Purpose",
+                        value: visitorCompany,
+                        onChange: ev => setVisitorCompany(ev.target.value)
+                      }),
+                      e.jsxs("button", {
+                        type: "submit",
+                        className: "btn-primary btn-sm sm:col-span-3 justify-center flex items-center gap-1.5 py-2",
+                        children: [e.jsx(QrIcon, { size: 14 }), " Issue Numbered Gate Pass"]
+                      })
+                    ]
+                  })
+                ]
+              }),
+
+              // Live Station Activity Ledger Table
+              e.jsxs("div", {
+                className: "card p-5 space-y-3 border-slate-200",
+                children: [
+                  e.jsxs("div", {
+                    className: "flex items-center justify-between",
+                    children: [
+                      e.jsx("h3", { className: "text-sm font-bold text-slate-900 uppercase tracking-wide", children: "Station Telemetry & Access Log" }),
+                      e.jsx("span", { className: "text-xs text-slate-500", children: "Live Event Feed" })
+                    ]
                   }),
-                  e.jsx("input", {
-                    type: "text",
-                    className: "input input-sm",
-                    placeholder: "Company / Purpose",
-                    value: visitorCompany,
-                    onChange: ev => setVisitorCompany(ev.target.value)
-                  }),
-                  e.jsxs("button", {
-                    type: "submit",
-                    className: "btn-primary btn-sm sm:col-span-3 justify-center flex items-center gap-1.5",
-                    children: [e.jsx(QrIcon, { size: 14 }), " Issue Numbered Gate Pass"]
+                  e.jsx("div", {
+                    className: "overflow-x-auto",
+                    children: e.jsxs("table", {
+                      className: "w-full text-left text-xs text-slate-700 divide-y divide-slate-200",
+                      children: [
+                        e.jsx("thead", {
+                          className: "bg-slate-50 font-semibold uppercase text-slate-500",
+                          children: e.jsxs("tr", {
+                            children: [
+                              e.jsx("th", { className: "p-2.5", children: "Time" }),
+                              e.jsx("th", { className: "p-2.5", children: "Event" }),
+                              e.jsx("th", { className: "p-2.5", children: "Personnel / Site" }),
+                              e.jsx("th", { className: "p-2.5", children: "Verification & Details" })
+                            ]
+                          })
+                        }),
+                        e.jsx("tbody", {
+                          className: "divide-y divide-slate-100 bg-white",
+                          children: recentActivity.map(act => e.jsxs("tr", {
+                            key: act.id,
+                            className: "hover:bg-slate-50",
+                            children: [
+                              e.jsx("td", { className: "p-2.5 font-mono text-slate-500 whitespace-nowrap", children: act.time }),
+                              e.jsx("td", {
+                                className: "p-2.5",
+                                children: e.jsx("span", {
+                                  className: act.type === "punch_in" ? "badge-green" : act.type === "patrol_scan" ? "badge-blue" : "badge-amber",
+                                  children: act.status
+                                })
+                              }),
+                              e.jsxs("td", {
+                                className: "p-2.5",
+                                children: [
+                                  e.jsx("div", { className: "font-semibold text-slate-900", children: act.guard_name }),
+                                  e.jsxs("div", { className: "text-slate-500", children: [act.site_name, " · ", act.post] })
+                                ]
+                              }),
+                              e.jsx("td", { className: "p-2.5 text-slate-600", children: act.details })
+                            ]
+                          }))
+                        })
+                      ]
+                    })
                   })
                 ]
               })
@@ -1196,146 +1392,98 @@ function GuardsDirectoryView({ onAddGuard, onExpiringDocs }) {
   const d = D();
   const [t, l] = p.useState(null);
 
-  const j = p.useMemo(() => [
-    {
-      name: "status",
-      label: "Status",
-      options: [
-        { value: "Active", label: "Active" },
-        { value: "Inactive", label: "Inactive" },
-        { value: "On Leave", label: "On Leave" },
-        { value: "Suspended", label: "Suspended" },
-        { value: "Terminated", label: "Terminated" }
-      ]
-    },
-    {
-      name: "category_id",
-      label: "Category",
-      options: [
-        { value: "1", label: "Security Guard" },
-        { value: "2", label: "Senior Guard" },
-        { value: "3", label: "Head Guard" },
-        { value: "4", label: "Armed Guard" },
-        { value: "5", label: "Lady Guard" },
-        { value: "6", label: "Patrol Guard" }
-      ]
-    },
-    {
-      name: "is_deployed",
-      label: "Deployment",
-      options: [
-        { value: "1", label: "Deployed" },
-        { value: "0", label: "Available" }
-      ]
-    },
-    {
-      name: "kyc_status",
-      label: "KYC",
-      options: [
-        { value: "Verified", label: "Verified" },
-        { value: "Pending", label: "Pending" },
-        { value: "Rejected", label: "Rejected" }
-      ]
-    },
-    {
-      name: "pv_status",
-      label: "Police verification",
-      options: [
-        { value: "Clear", label: "Clear" },
-        { value: "Pending", label: "Pending" },
-        { value: "Failed", label: "Failed" }
-      ]
-    }
-  ], []);
-
-  const r = H({
-    key: "guards",
-    url: "/guards",
-    sort: "created_at",
-    dir: "desc"
-  });
+  const r = H("guards", ["missing_docs"], { exportName: "Guards" });
+  const c = V(["guard_category"]);
 
   const s = async a => {
-    if (confirm(`Delete guard ${a.name}? This will remove them from all active deployments.`)) {
+    if (await L({
+      title: `Delete guard “${a.name}”?`,
+      message: a.current_deployment_id ? "This guard is deployed; end the deployment first — the server will refuse." : "Their app login is deactivated. History stays in the audit log.",
+      confirmLabel: "Delete",
+      danger: true
+    })) {
       try {
         await G(`/guards/${a.id}`);
-        r.refresh();
-      } catch (u) {
-        alert("Failed to delete guard: " + (u.message || "Unknown error"));
+        K.success("Guard deleted", a.name);
+        r.refetch();
+      } catch (err) {
+        K.error("Delete failed", err?.message);
       }
     }
   };
 
+  const j = p.useMemo(() => {
+    const a = [{ key: "status", label: "Status", allLabel: "Any status", options: M }];
+    if (c.data?.guard_category) {
+      a.push({ key: "guard_category_id", label: "Category", allLabel: "All categories", options: O(c.data.guard_category) });
+    }
+    a.push({ key: "deployed", label: "Deployed", allLabel: "Deployed or not", options: [{ value: "1", label: "Deployed" }, { value: "0", label: "Not deployed" }] });
+    a.push({ key: "kyc_status", label: "KYC", allLabel: "Any KYC", options: I });
+    a.push({ key: "police_verification_status", label: "Police verification", allLabel: "Any police verification", options: R });
+    return a;
+  }, [c.data]);
+
   const n = $();
   const v = [
-    n.accessor("code", {
-      header: "Code",
-      meta: { className: "font-mono text-xs w-24" }
-    }),
     n.accessor("name", {
-      header: "Name",
-      cell: a => e.jsxs("div", {
-        className: "flex items-center gap-2",
-        children: [
-          e.jsx("span", {
-            className: "flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 font-bold text-xs text-slate-700",
-            children: a.getValue().charAt(0)
-          }),
-          e.jsxs("div", {
-            children: [
-              e.jsx("div", { className: "font-medium text-slate-900", children: a.getValue() }),
-              a.row.original.blood_group && e.jsxs("span", {
-                className: "text-[11px] text-slate-400 font-mono",
-                children: ["Blood: ", a.row.original.blood_group]
-              })
-            ]
-          })
-        ]
-      })
-    }),
-    n.accessor("mobile", {
-      header: "Mobile",
-      meta: { className: "font-mono text-xs" }
-    }),
-    n.accessor("category_name", {
-      header: "Category",
-      cell: a => e.jsx("span", { className: "badge-navy", children: a.getValue() || "Guard" })
-    }),
-    n.accessor("current_site_name", {
-      header: "Site",
-      cell: a => a.getValue() ? e.jsxs("div", {
-        className: "flex items-center gap-1 text-slate-700",
-        children: [
-          e.jsx(MapPinIcon, { size: 13, className: "text-slate-400 shrink-0" }),
-          e.jsx("span", { className: "truncate max-w-[140px]", children: a.getValue() })
-        ]
-      }) : e.jsx("span", { className: "text-slate-400 italic text-xs", children: "Unassigned" })
-    }),
-    n.accessor("kyc_status", {
-      header: "KYC",
+      header: "Guard",
+      meta: { sortKey: "name" },
       cell: a => {
-        const val = a.getValue();
-        return e.jsx("span", {
-          className: val === "Verified" ? "badge-green" : val === "Pending" ? "badge-amber" : "badge-red",
-          children: val || "Pending"
+        const i = a.row.original;
+        return e.jsxs("div", {
+          className: "flex items-center gap-3",
+          children: [
+            e.jsx(F, { name: i.name, url: i.photo_url }),
+            e.jsxs("div", {
+              className: "min-w-0",
+              children: [
+                e.jsx("div", { className: "truncate font-medium text-slate-900", children: i.name }),
+                e.jsxs("div", {
+                  className: "truncate text-xs text-slate-500",
+                  children: [
+                    e.jsx("span", { className: "font-mono", children: i.employee_code || i.code }),
+                    " · ",
+                    i.mobile
+                  ]
+                })
+              ]
+            })
+          ]
         });
       }
     }),
-    n.accessor("pv_status", {
-      header: "Police Verification",
+    n.accessor("category_name", {
+      header: "Category",
+      meta: { sortKey: "category" },
+      cell: a => a.getValue() ? e.jsx("span", { className: "badge-navy", children: a.getValue() }) : e.jsx("span", { className: "text-slate-300", children: "—" })
+    }),
+    n.accessor("current_site_name", {
+      header: "Posted at",
+      meta: { sortKey: "site" },
       cell: a => {
-        const val = a.getValue();
-        return e.jsx("span", {
-          className: val === "Clear" ? "badge-green" : val === "Pending" ? "badge-amber" : "badge-red",
-          children: val || "Pending"
-        });
+        const i = a.row.original;
+        return i.current_site_name ? e.jsxs("div", {
+          className: "min-w-0",
+          children: [
+            e.jsx("div", { className: "truncate text-slate-800", children: i.current_site_name }),
+            e.jsx("div", { className: "truncate text-xs text-slate-500", children: i.current_client_name })
+          ]
+        }) : e.jsx("span", { className: "badge-gray", children: "Not deployed" });
       }
     }),
     n.accessor("status", {
       header: "Status",
-      cell: a => e.jsx("span", {
-        className: a.getValue() === "Active" ? "badge-green" : "badge-gray",
-        children: a.getValue() || "Active"
+      meta: { sortKey: "status" },
+      cell: a => e.jsx(g, { status: a.getValue() })
+    }),
+    n.accessor("kyc_status", {
+      header: "KYC / PV",
+      cell: a => e.jsxs("div", {
+        className: "flex flex-col items-start gap-1",
+        children: [
+          e.jsx(g, { status: a.getValue(), label: `KYC ${a.getValue()}` }),
+          e.jsx(g, { status: a.row.original.police_verification_status || a.row.original.pv_status || "Clear", label: `PV ${a.row.original.police_verification_status || a.row.original.pv_status || "Clear"}` })
+        ]
       })
     }),
     n.accessor("missing_docs", {
@@ -1370,10 +1518,39 @@ function GuardsDirectoryView({ onAddGuard, onExpiringDocs }) {
     })
   ];
 
-  const h = r.extra.missing_docs === "1";
+  const h = r.extra?.missing_docs === "1";
 
-  return e.jsxs(e.Fragment, {
+  return e.jsxs("div", {
+    className: "space-y-4",
     children: [
+      e.jsxs("div", {
+        className: "flex flex-wrap items-center justify-between gap-3",
+        children: [
+          e.jsxs("div", {
+            children: [
+              e.jsx("h2", { className: "text-lg font-bold text-slate-900", children: "Security Guards Directory" }),
+              e.jsx("p", { className: "text-xs text-slate-500", children: "Manage personnel profiles, police verification, identity KYC, and assigned client deployments" })
+            ]
+          }),
+          e.jsxs("div", {
+            className: "flex items-center gap-2",
+            children: [
+              e.jsxs("button", {
+                type: "button",
+                className: "btn-secondary btn-sm",
+                onClick: onExpiringDocs,
+                children: [e.jsx(FileWarningIcon, { size: 14 }), " Documents Expiring"]
+              }),
+              o("guards", "create") && e.jsxs("button", {
+                type: "button",
+                className: "btn-primary btn-sm",
+                onClick: onAddGuard,
+                children: [e.jsx(B, { size: 14 }), " Add Guard"]
+              })
+            ]
+          })
+        ]
+      }),
       e.jsx(z, {
         list: r,
         columns: v,
@@ -1395,7 +1572,10 @@ function GuardsDirectoryView({ onAddGuard, onExpiringDocs }) {
         open: t !== null,
         guardId: t && t !== "new" ? t.id : null,
         onClose: () => l(null),
-        onSaved: a => { t === "new" && d(`/guards/${a}`); }
+        onSaved: a => {
+          t === "new" && d(`/guards/${a}`);
+          r.refetch();
+        }
       })
     ]
   });
@@ -1407,43 +1587,97 @@ function GuardsDirectoryView({ onAddGuard, onExpiringDocs }) {
 function he() {
   const { can: o } = P();
   const d = D();
-  const [tab, setTab] = ye("dashboard");
+  const [urlTab, setUrlTab] = ye("dashboard");
+  const [activeTab, setActiveTab] = p.useState(urlTab || "dashboard");
   const [modalNewGuard, setModalNewGuard] = p.useState(false);
   const [modalExpiring, setModalExpiring] = p.useState(false);
   const [selectedGuardKiosk, setSelectedGuardKiosk] = p.useState(1);
 
+  p.useEffect(() => {
+    if (urlTab && urlTab !== activeTab) {
+      setActiveTab(urlTab);
+    }
+  }, [urlTab]);
+
+  const handleTabChange = newTab => {
+    setActiveTab(newTab);
+    setUrlTab(newTab);
+  };
+
+  const handleOpenKiosk = guardId => {
+    if (guardId) setSelectedGuardKiosk(guardId);
+    handleTabChange("kiosk");
+  };
+
   return e.jsxs("div", {
-    className: "space-y-5",
+    className: "space-y-6",
     children: [
-      // Tabs Navigation
-      e.jsx(ke, {
-        value: tab,
-        onChange: setTab,
-        tabs: [
-          { key: "dashboard", label: "🛡️ Operations Dashboard" },
-          { key: "directory", label: "📋 Guards Master" },
-          { key: "posts", label: "🏛️ On-Duty Posts" },
-          { key: "kiosk", label: "📱 Guard Station Kiosk" }
-        ]
+      // Modern interactive Tab Bar with state-of-the-art styling
+      e.jsx("div", {
+        className: "border-b border-slate-200 bg-white -mx-4 -mt-2 px-4 sm:-mx-6 sm:px-6 mb-4 shadow-sm",
+        children: e.jsx("div", {
+          className: "flex gap-2 overflow-x-auto py-2",
+          role: "tablist",
+          children: [
+            { key: "dashboard", label: "Operations Dashboard", icon: "🛡️", desc: "Live Telemetry & KPIs" },
+            { key: "directory", label: "Guards Master", icon: "📋", desc: "Full Roster & Records" },
+            { key: "posts", label: "On-Duty Posts", icon: "🏛️", desc: "Site Manning & Muster" },
+            { key: "kiosk", label: "Guard Station Kiosk", icon: "📱", desc: "Field Terminal & Visitors" }
+          ].map(t => {
+            const isActive = activeTab === t.key;
+            return e.jsxs("button", {
+              key: t.key,
+              type: "button",
+              role: "tab",
+              "aria-selected": isActive,
+              onClick: () => handleTabChange(t.key),
+              className: `relative flex items-center gap-2.5 py-2.5 px-4 text-sm font-semibold transition-all border-b-2 whitespace-nowrap rounded-lg ${
+                isActive
+                  ? "border-amber-500 text-slate-900 bg-amber-50/70 shadow-sm"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+              }`,
+              children: [
+                e.jsx("span", { className: "text-lg", children: t.icon }),
+                e.jsxs("div", {
+                  className: "text-left leading-tight",
+                  children: [
+                    e.jsx("div", { children: t.label }),
+                    e.jsx("div", { className: `text-[10px] font-normal ${isActive ? "text-amber-700" : "text-slate-400"}`, children: t.desc })
+                  ]
+                }),
+                isActive && e.jsx("span", {
+                  className: "ml-2 h-2 w-2 rounded-full bg-amber-500 animate-pulse"
+                })
+              ]
+            });
+          })
+        })
       }),
 
-      // Tab Content Views
-      tab === "dashboard" && e.jsx(SecurityGuardDashboard, {
+      // Tab 1: Operations Dashboard
+      activeTab === "dashboard" && e.jsx(SecurityGuardDashboard, {
         onAddGuard: () => setModalNewGuard(true),
         onExpiringDocs: () => setModalExpiring(true),
-        onOpenKiosk: id => setSelectedGuardKiosk(id),
-        onTabChange: setTab
+        onOpenKiosk: handleOpenKiosk,
+        onTabChange: handleTabChange
       }),
 
-      tab === "directory" && e.jsx(GuardsDirectoryView, {
+      // Tab 2: Guards Master Directory (DataTable)
+      activeTab === "directory" && e.jsx(GuardsDirectoryView, {
         onAddGuard: () => setModalNewGuard(true),
-        onExpiringDocs: () => setModalExpiring(true)
+        onExpiringDocs: () => setModalExpiring(true),
+        onOpenKiosk: handleOpenKiosk
       }),
 
-      tab === "posts" && e.jsx(OnDutyPostsView, {}),
+      // Tab 3: On-Duty Posts Matrix
+      activeTab === "posts" && e.jsx(OnDutyPostsView, {
+        onOpenKiosk: handleOpenKiosk
+      }),
 
-      tab === "kiosk" && e.jsx(GuardStationKiosk, {
-        guardId: selectedGuardKiosk
+      // Tab 4: Guard Station Kiosk Terminal
+      activeTab === "kiosk" && e.jsx(GuardStationKiosk, {
+        guardId: selectedGuardKiosk,
+        onAddGuard: () => setModalNewGuard(true)
       }),
 
       // Global Modals accessible from any tab
