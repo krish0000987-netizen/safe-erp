@@ -3933,12 +3933,21 @@ app.get("/api/v1/portal/sites", (req, res) => {
 // ============================================================================
 // STATIC ASSETS & SINGLE PAGE APPLICATION (SPA) FALLBACK
 // ============================================================================
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), {
+  setHeaders: (res, filePath) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+  }
+}));
 
 app.get("*", (req, res) => {
   if (req.path.startsWith("/api/") || req.path.startsWith("/assets/")) {
     return res.status(404).json(envelope(null, {}, [{ message: "Not found" }]));
   }
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
